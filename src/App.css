@@ -1,0 +1,81 @@
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.main-navbar {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 18px 36px;
+}
+
+.logo-box {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  background: #2563eb;
+  color: white;
+  font-weight: 800;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-pill {
+  padding: 12px 24px;
+  border-radius: 14px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 20px;
+}
+
+.nav-pill.active,
+.nav-pill:hover {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.hero-section {
+  text-align: center;
+  padding: 80px 20px 60px;
+}
+
+.hero-title {
+  font-size: 52px;
+  font-weight: 800;
+}
+
+.hero-subtitle {
+  font-size: 26px;
+  color: #64748b;
+}
+
+.portal-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 48px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  min-height: 380px;
+}
+
+.icon-box {
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.icon-blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.icon-green {
+  background: #dcfce7;
+  color: #16a34a;
+}
