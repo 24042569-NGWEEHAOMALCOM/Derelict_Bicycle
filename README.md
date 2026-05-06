@@ -11,7 +11,7 @@ git clone https://github.com/24042569-NGWEEHAOMALCOM/Derelict_Bicycle.git
 ### 2. Navigate Into Project Folder
 
 ```bash
-cd Derelict_Bicycle
+cd dbms-app
 ```
 
 ---
