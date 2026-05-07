@@ -4,6 +4,27 @@ import { useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
+const finalStatuses = [
+  "Removed",
+  "Closed",
+  "Closed - Claimed",
+  "Closed - Not Abandoned",
+];
+
+const formatDate = (dateValue) => {
+  if (!dateValue) return "Not available";
+
+  const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return date.toLocaleDateString("en-SG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 function QRPage() {
   const { id } = useParams();
 
@@ -53,11 +74,15 @@ function QRPage() {
 
   const expiryDate = report.expiryDate?.toDate
     ? report.expiryDate.toDate()
-    : new Date(report.expiryDate);
+    : report.expiryDate
+      ? new Date(report.expiryDate)
+      : null;
 
   const today = new Date();
 
-  const isExpired = today > expiryDate;
+  const hasValidExpiryDate = expiryDate && !Number.isNaN(expiryDate.getTime());
+  const isExpired = hasValidExpiryDate && today > expiryDate;
+  const isFinalStatus = finalStatuses.includes(report.status);
 
   return (
     <div className="container py-5">
@@ -84,14 +109,24 @@ function QRPage() {
           <strong>Status:</strong> {report.status}
         </p>
 
-        <p className="fs-5">
-          <strong>Notice Expiry Date:</strong>{" "}
-          {expiryDate.toLocaleDateString()}
-        </p>
+        {hasValidExpiryDate && (
+          <p className="fs-5">
+            <strong>Notice Expiry Date:</strong>{" "}
+            {formatDate(expiryDate)}
+          </p>
+        )}
 
         <div className="mt-4">
 
-          {isExpired ? (
+          {isFinalStatus ? (
+            <div className="alert alert-success">
+              This case is already closed. No further resident action is required.
+            </div>
+          ) : !hasValidExpiryDate ? (
+            <div className="alert alert-info">
+              This bicycle has not been tagged yet. Notice period information is not available.
+            </div>
+          ) : isExpired ? (
             <div className="alert alert-danger">
               Notice period has expired. Bicycle may be removed by Town Council.
             </div>
@@ -103,17 +138,19 @@ function QRPage() {
 
         </div>
 
-        <div className="d-flex gap-3 mt-4">
+        {!isFinalStatus && (
+          <div className="d-flex flex-wrap gap-3 mt-4">
 
-          <a href={`/claim/${report.id}`} className="btn btn-success">
-            Claim Bicycle
+            <a href={`/claim/${report.id}`} className="btn btn-success">
+              Claim Bicycle
             </a>
 
-          <a href={`/not-abandoned/${report.id}`} className="btn btn-outline-secondary">
-            Report Not Abandoned
+            <a href={`/not-abandoned/${report.id}`} className="btn btn-outline-secondary">
+              Report Not Abandoned
             </a>
 
-        </div>
+          </div>
+        )}
 
       </div>
 

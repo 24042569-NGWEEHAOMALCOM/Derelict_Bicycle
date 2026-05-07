@@ -1,23 +1,124 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
 
+const statusOptions = [
+  "All",
+  "Reported",
+  "Verified",
+  "Tagged",
+  "Removed",
+  "Closed",
+  "Closed - Claimed",
+  "Closed - Not Abandoned",
+];
+
+const statusActions = {
+  Reported: [
+    {
+      label: "Mark Verified",
+      status: "Verified",
+      className: "btn btn-info btn-sm text-white",
+    },
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+  Verified: [
+    {
+      label: "Mark Tagged",
+      status: "Tagged",
+      className: "btn btn-warning btn-sm",
+    },
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+  Tagged: [
+    {
+      label: "Mark Removed",
+      status: "Removed",
+      className: "btn btn-danger btn-sm",
+    },
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+  Removed: [
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+  Closed: [],
+  "Closed - Claimed": [],
+  "Closed - Not Abandoned": [],
+};
+
+const getTopCounts = (items, fieldName, limit = 5) => {
+  const countMap = items.reduce((currentCounts, item) => {
+    const key = item[fieldName]?.trim();
+
+    if (!key) return currentCounts;
+
+    return {
+      ...currentCounts,
+      [key]: (currentCounts[key] || 0) + 1,
+    };
+  }, {});
+
+  return Object.entries(countMap)
+    .map(([label, count]) => ({
+      label,
+      count,
+    }))
+    .sort((firstItem, secondItem) => secondItem.count - firstItem.count)
+    .slice(0, limit);
+};
+
 function Staff() {
   const [reports, setReports] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedReportId, setSelectedReportId] = useState("");
 
-  const fetchReports = async () => {
+  const getReportList = async () => {
     const querySnapshot = await getDocs(collection(db, "reports"));
 
-    const reportList = querySnapshot.docs.map((docItem) => ({
+    return querySnapshot.docs.map((docItem) => ({
       id: docItem.id,
       ...docItem.data(),
     }));
+  };
+
+  const fetchReports = async () => {
+    const reportList = await getReportList();
 
     setReports(reportList);
   };
 
   const updateStatus = async (reportId, newStatus) => {
+    const currentReport = reports.find((report) => report.id === reportId);
+    const allowedActions = statusActions[currentReport?.status] || [];
+    const isAllowedStatus = allowedActions.some(
+      (action) => action.status === newStatus
+    );
+
+    if (!isAllowedStatus) {
+      alert("This status update is not allowed for the current case stage.");
+      return;
+    }
+
     const reportRef = doc(db, "reports", reportId);
 
     let updateData = {
@@ -67,8 +168,79 @@ function Staff() {
   };
 
   useEffect(() => {
-    fetchReports();
+    const loadReports = async () => {
+      try {
+        const reportList = await getReportList();
+
+        setReports(reportList);
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadReports();
   }, []);
+
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
+  const filteredReports = reports.filter((report) => {
+    const matchesStatus =
+      statusFilter === "All" || report.status === statusFilter;
+
+    const searchableText = [
+      report.id,
+      report.blockNumber,
+      report.location,
+      report.description,
+      report.status,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      !normalizedSearchTerm || searchableText.includes(normalizedSearchTerm);
+
+    return matchesStatus && matchesSearch;
+  });
+
+  const selectedReport = reports.find((report) => report.id === selectedReportId);
+  const hasClaimResponse =
+    selectedReport?.claimName ||
+    selectedReport?.claimPhone ||
+    selectedReport?.claimProof;
+  const hasNotAbandonedResponse = selectedReport?.notAbandonedReason;
+  const hasResidentResponse = hasClaimResponse || hasNotAbandonedResponse;
+  const availableStatusActions = statusActions[selectedReport?.status] || [];
+  const statusCounts = statusOptions
+    .filter((status) => status !== "All")
+    .map((status) => ({
+      status,
+      count: reports.filter((report) => report.status === status).length,
+    }));
+  const topBlocks = getTopCounts(reports, "blockNumber");
+  const topLocations = getTopCounts(reports, "location");
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("All");
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return "Not available";
+
+    const date = dateValue.toDate ? dateValue.toDate() : new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) return "Not available";
+
+    return date.toLocaleDateString("en-SG", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   const getBadgeClass = (status) => {
 
@@ -172,139 +344,485 @@ function Staff() {
 
       </div>
 
+      <div className="portal-card mb-5" style={{ minHeight: "auto" }}>
+        <div className="mb-4">
+          <h2 className="fw-bold h3">
+            Hotspot Analytics
+          </h2>
+
+          <p className="text-muted fs-5 mb-0">
+            Identify repeated report areas and monitor case distribution.
+          </p>
+        </div>
+
+        <div className="row g-4">
+          <div className="col-lg-4">
+            <div className="border rounded-3 p-3 h-100">
+              <h3 className="h5 fw-bold mb-3">
+                Status Breakdown
+              </h3>
+
+              <div className="d-flex flex-column gap-2">
+                {statusCounts.map((item) => (
+                  <div
+                    className="d-flex justify-content-between align-items-center"
+                    key={item.status}
+                  >
+                    <span className={`badge ${getBadgeClass(item.status)}`}>
+                      {item.status}
+                    </span>
+
+                    <span className="fw-bold">
+                      {item.count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-lg-4">
+            <div className="border rounded-3 p-3 h-100">
+              <h3 className="h5 fw-bold mb-3">
+                Top Reported Blocks
+              </h3>
+
+              {topBlocks.length === 0 ? (
+                <p className="text-muted mb-0">
+                  No block data available.
+                </p>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Block</th>
+                        <th className="text-end">Reports</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topBlocks.map((block) => (
+                        <tr key={block.label}>
+                          <td>{block.label}</td>
+                          <td className="text-end fw-bold">{block.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="col-lg-4">
+            <div className="border rounded-3 p-3 h-100">
+              <h3 className="h5 fw-bold mb-3">
+                Top Reported Locations
+              </h3>
+
+              {topLocations.length === 0 ? (
+                <p className="text-muted mb-0">
+                  No location data available.
+                </p>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Location</th>
+                        <th className="text-end">Reports</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topLocations.map((location) => (
+                        <tr key={location.label}>
+                          <td>{location.label}</td>
+                          <td className="text-end fw-bold">{location.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="portal-card mb-5" style={{ minHeight: "auto" }}>
+        <div className="row g-3 align-items-end">
+          <div className="col-lg-7">
+            <label className="form-label" htmlFor="staffSearch">
+              Search Reports
+            </label>
+
+            <input
+              className="form-control form-control-lg"
+              id="staffSearch"
+              type="text"
+              placeholder="Search by report ID, block, location, description or status"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="col-md-6 col-lg-3">
+            <label className="form-label" htmlFor="statusFilter">
+              Status
+            </label>
+
+            <select
+              className="form-select form-select-lg"
+              id="statusFilter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              {statusOptions.map((status) => (
+                <option value={status} key={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="col-md-6 col-lg-2">
+            <button
+              className="btn btn-outline-secondary btn-lg w-100"
+              type="button"
+              onClick={clearFilters}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <p className="text-muted mt-3 mb-0">
+          Showing {filteredReports.length} of {reports.length} reports.
+        </p>
+      </div>
+
       {reports.length === 0 ? (
 
         <div className="portal-card text-center">
           <p className="fs-5 text-muted m-0">
-            No reports found.
+            {isLoading ? "Loading reports..." : "No reports found."}
           </p>
+        </div>
+
+      ) : filteredReports.length === 0 ? (
+
+        <div className="portal-card text-center">
+          <p className="fs-5 text-muted mb-3">
+            No reports match your current search or filter.
+          </p>
+
+          <button
+            className="btn btn-outline-primary"
+            type="button"
+            onClick={clearFilters}
+          >
+            Clear Filters
+          </button>
         </div>
 
       ) : (
 
         <div className="row g-4">
+          <div className="col-lg-5">
+            <div className="portal-card h-100" style={{ minHeight: "auto" }}>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h2 className="h4 fw-bold mb-0">
+                  Report List
+                </h2>
 
-          {reports.map((report) => (
-
-            <div className="col-md-6" key={report.id}>
-
-              <div className="portal-card h-100">
-
-                <div className="d-flex justify-content-between align-items-start mb-3">
-
-                  <h4 className="fw-bold">
-                    Block {report.blockNumber}
-                  </h4>
-
-                  <span className={`badge ${getBadgeClass(report.status)}`}>
-                    {report.status}
-                  </span>
-
-                </div>
-
-                <p className="text-muted mb-1">
-                  <strong>Report ID:</strong> {report.id}
-                </p>
-
-                <p className="text-muted mb-1">
-                  <strong>Location:</strong> {report.location}
-                </p>
-
-                <p className="text-muted mb-3">
-                  <strong>Description:</strong> {report.description}
-                </p>
-
-                {report.qrCodeImage && (
-                  <div className="mt-3 mb-3">
-
-                    <h6 className="fw-bold">
-                      QR Code Tag
-                    </h6>
-
-                    <img
-                      src={report.qrCodeImage}
-                      alt="QR Code"
-                      style={{
-                        width: "160px",
-                        height: "160px",
-                        border: "1px solid #ccc",
-                        padding: "8px",
-                        borderRadius: "8px",
-                        background: "white",
-                      }}
-                    />
-
-                    <p className="text-muted small mt-2">
-                      <strong>Scan URL:</strong>
-                      <br />
-                      {report.qrUrl}
-                    </p>
-
-                    {report.expiryDate && (
-                      <p className="text-muted small">
-                        <strong>Notice expires:</strong>{" "}
-                        {report.expiryDate.toDate
-                          ? report.expiryDate.toDate().toLocaleDateString()
-                          : new Date(report.expiryDate).toLocaleDateString()}
-                      </p>
-                    )}
-
-                    <button
-                      className="btn btn-outline-primary btn-sm"
-                      onClick={() => window.print()}
-                    >
-                      Print QR Code
-                    </button>
-
-                  </div>
-                )}
-
-                <div className="d-flex flex-wrap gap-2">
-
-                  <button
-                    className="btn btn-info btn-sm text-white"
-                    onClick={() =>
-                      updateStatus(report.id, "Verified")
-                    }
-                  >
-                    Mark Verified
-                  </button>
-
-                  <button
-                    className="btn btn-warning btn-sm"
-                    onClick={() =>
-                      updateStatus(report.id, "Tagged")
-                    }
-                  >
-                    Mark Tagged
-                  </button>
-
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() =>
-                      updateStatus(report.id, "Removed")
-                    }
-                  >
-                    Mark Removed
-                  </button>
-
-                  <button
-                    className="btn btn-success btn-sm"
-                    onClick={() =>
-                      updateStatus(report.id, "Closed")
-                    }
-                  >
-                    Close Case
-                  </button>
-
-                </div>
-
+                <span className="badge bg-light text-dark">
+                  {filteredReports.length} shown
+                </span>
               </div>
 
+              <div className="list-group">
+                {filteredReports.map((report) => (
+                  <button
+                    className={`list-group-item list-group-item-action ${
+                      selectedReportId === report.id ? "active" : ""
+                    }`}
+                    type="button"
+                    key={report.id}
+                    onClick={() => setSelectedReportId(report.id)}
+                  >
+                    <div className="d-flex justify-content-between align-items-start gap-3">
+                      <div className="text-start">
+                        <p className="fw-semibold mb-1">
+                          {report.id}
+                        </p>
+
+                        <p className="small mb-0">
+                          Block {report.blockNumber || "N/A"} -{" "}
+                          {report.location || "No location"}
+                        </p>
+                      </div>
+
+                      <span className={`badge ${getBadgeClass(report.status)}`}>
+                        {report.status || "Unknown"}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
+          </div>
 
-          ))}
+          <div className="col-lg-7">
+            <div className="portal-card h-100" style={{ minHeight: "auto" }}>
+              {!selectedReport ? (
+                <div className="text-center py-5">
+                  <h2 className="h4 fw-bold">
+                    Select a report
+                  </h2>
 
+                  <p className="text-muted fs-5 mb-0">
+                    Click a report ID from the list to view full details and update its status.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4">
+                    <div>
+                      <h2 className="h3 fw-bold mb-2">
+                        Block {selectedReport.blockNumber || "N/A"}
+                      </h2>
+
+                      <p className="text-muted mb-0">
+                        Report ID: <span className="fw-semibold">{selectedReport.id}</span>
+                      </p>
+                    </div>
+
+                    <span className={`badge fs-6 ${getBadgeClass(selectedReport.status)}`}>
+                      {selectedReport.status || "Unknown"}
+                    </span>
+                  </div>
+
+                  <div className="row g-3 mb-4">
+                    <div className="col-md-6">
+                      <div className="border rounded-3 p-3 h-100">
+                        <p className="text-muted small text-uppercase mb-1">
+                          Location
+                        </p>
+
+                        <p className="fw-semibold mb-0">
+                          {selectedReport.location || "Not provided"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="col-md-6">
+                      <div className="border rounded-3 p-3 h-100">
+                        <p className="text-muted small text-uppercase mb-1">
+                          Submitted
+                        </p>
+
+                        <p className="fw-semibold mb-0">
+                          {formatDate(selectedReport.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="col-12">
+                      <div className="border rounded-3 p-3">
+                        <p className="text-muted small text-uppercase mb-1">
+                          Description
+                        </p>
+
+                        <p className="mb-0">
+                          {selectedReport.description || "No description provided."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h3 className="h5 fw-bold mb-3">
+                      Resident Response
+                    </h3>
+
+                    {!hasResidentResponse ? (
+                      <div className="alert alert-secondary mb-0">
+                        No claim or not-abandoned response has been submitted for this report.
+                      </div>
+                    ) : (
+                      <div className="row g-3">
+                        {hasClaimResponse && (
+                          <div className="col-12">
+                            <div className="border rounded-3 p-3 bg-light">
+                              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <h4 className="h6 fw-bold mb-0">
+                                  Bicycle Claim
+                                </h4>
+
+                                <span className="badge bg-success">
+                                  Claimed
+                                </span>
+                              </div>
+
+                              <div className="row g-3">
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Name
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.claimName || "Not provided"}
+                                  </p>
+                                </div>
+
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Phone
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.claimPhone || "Not provided"}
+                                  </p>
+                                </div>
+
+                                <div className="col-12">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Proof / Description
+                                  </p>
+
+                                  <p className="mb-0">
+                                    {selectedReport.claimProof || "Not provided"}
+                                  </p>
+                                </div>
+
+                                <div className="col-12">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Submitted
+                                  </p>
+
+                                  <p className="mb-0">
+                                    {formatDate(selectedReport.claimedAt)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {hasNotAbandonedResponse && (
+                          <div className="col-12">
+                            <div className="border rounded-3 p-3 bg-light">
+                              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <h4 className="h6 fw-bold mb-0">
+                                  Not Abandoned Report
+                                </h4>
+
+                                <span className="badge bg-primary">
+                                  Not Abandoned
+                                </span>
+                              </div>
+
+                              <p className="text-muted small text-uppercase mb-1">
+                                Reason
+                              </p>
+
+                              <p>
+                                {selectedReport.notAbandonedReason}
+                              </p>
+
+                              <p className="text-muted small text-uppercase mb-1">
+                                Submitted
+                              </p>
+
+                              <p className="mb-0">
+                                {formatDate(selectedReport.notAbandonedAt)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedReport.qrCodeImage && (
+                    <div className="mt-3 mb-4">
+                      <h3 className="h5 fw-bold">
+                        QR Code Tag
+                      </h3>
+
+                      <img
+                        src={selectedReport.qrCodeImage}
+                        alt="QR Code"
+                        style={{
+                          width: "160px",
+                          height: "160px",
+                          border: "1px solid #ccc",
+                          padding: "8px",
+                          borderRadius: "8px",
+                          background: "white",
+                        }}
+                      />
+
+                      <p className="text-muted small mt-2">
+                        <strong>Scan URL:</strong>
+                        <br />
+                        {selectedReport.qrUrl}
+                      </p>
+
+                      {selectedReport.expiryDate && (
+                        <p className="text-muted small">
+                          <strong>Notice expires:</strong>{" "}
+                          {formatDate(selectedReport.expiryDate)}
+                        </p>
+                      )}
+
+                      <button
+                        className="btn btn-outline-primary btn-sm"
+                        type="button"
+                        onClick={() => window.print()}
+                      >
+                        Print Current Page
+                      </button>
+
+                      <Link
+                        className="btn btn-primary btn-sm ms-2"
+                        to={`/notice/${selectedReport.id}`}
+                      >
+                        Open Printable Notice
+                      </Link>
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="h5 fw-bold mb-3">
+                      Update Status
+                    </h3>
+
+                    {availableStatusActions.length === 0 ? (
+                      <div className="alert alert-secondary mb-0">
+                        This case is in a final status. No further staff status updates are available.
+                      </div>
+                    ) : (
+                      <div className="d-flex flex-wrap gap-2">
+                        {availableStatusActions.map((action) => (
+                          <button
+                            className={action.className}
+                            key={action.status}
+                            type="button"
+                            onClick={() =>
+                              updateStatus(selectedReport.id, action.status)
+                            }
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
       )}

@@ -4,12 +4,14 @@ import Home from "./pages/Home";
 import Resident from "./pages/Resident";
 import Staff from "./pages/Staff";
 import ReportBike from "./pages/ReportBike";
-import TrackStatus from "./pages/TrackStatus";
 import Navbar from "./components/Navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
 import "./App.css";
 import QRPage from "./pages/QRPage";
 import ClaimBike from "./pages/ClaimBike";
 import ReportNotAbandoned from "./pages/ReportNotAbandoned";
+import PrintNotice from "./pages/PrintNotice";
+import Login from "./pages/Login";
 
 function App() {
   return (
@@ -18,10 +20,25 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/resident" element={<Resident />} />
-        <Route path="/staff" element={<Staff />} />
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute>
+              <Staff />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/report" element={<ReportBike />} />
-        <Route path="/track" element={<TrackStatus />} />
         <Route path="/qr/:id" element={<QRPage />} />
+        <Route
+          path="/notice/:id"
+          element={
+            <ProtectedRoute>
+              <PrintNotice />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/claim/:id" element={<ClaimBike />} />
         <Route path="/not-abandoned/:id" element={<ReportNotAbandoned />} />
       </Routes>

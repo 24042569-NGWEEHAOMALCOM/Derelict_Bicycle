@@ -10,13 +10,13 @@ function Resident() {
         </h1>
 
         <p className="text-muted fs-4">
-          Report abandoned bicycles, track reports, and claim ownership.
+          Report abandoned bicycles and respond to QR notices when needed.
         </p>
       </div>
 
       <div className="row g-4">
 
-        <div className="col-md-4">
+        <div className="col-md-6">
           <Link
             to="/report"
             className="text-decoration-none"
@@ -24,7 +24,7 @@ function Resident() {
             <div className="portal-card h-100">
 
               <div className="icon-box icon-blue mb-4">
-                📝
+                Report
               </div>
 
               <h3 className="fw-bold">
@@ -39,34 +39,11 @@ function Resident() {
           </Link>
         </div>
 
-        <div className="col-md-4">
-          <Link
-            to="/track"
-            className="text-decoration-none"
-          >
-            <div className="portal-card h-100">
-
-              <div className="icon-box icon-green mb-4">
-                🔍
-              </div>
-
-              <h3 className="fw-bold">
-                Track Status
-              </h3>
-
-              <p className="text-muted fs-5">
-                Check the progress and current status of submitted reports.
-              </p>
-
-            </div>
-          </Link>
-        </div>
-
-        <div className="col-md-4">
+        <div className="col-md-6">
           <div className="portal-card h-100">
 
-            <div className="icon-box icon-blue mb-4">
-              📱
+            <div className="icon-box icon-green mb-4">
+              QR
             </div>
 
             <h3 className="fw-bold">
@@ -74,7 +51,8 @@ function Resident() {
             </h3>
 
             <p className="text-muted fs-5">
-              Scan QR tags attached to bicycles to view notice periods and ownership details.
+              Scan QR tags attached to bicycles to view notice periods, claim ownership,
+              or report that a bicycle is not abandoned.
             </p>
 
           </div>

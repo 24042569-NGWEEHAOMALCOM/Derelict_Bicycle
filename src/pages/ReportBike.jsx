@@ -54,7 +54,7 @@ function ReportBike() {
       setFormData(initialForm);
       setMessage({
         type: "success",
-        text: "Report submitted successfully. Town Council staff can now review it.",
+        text: "Report submitted successfully. Town Council staff will review it.",
       });
     } catch (error) {
       console.error("Error adding report: ", error);

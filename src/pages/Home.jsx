@@ -23,15 +23,14 @@ function Home() {
                 </div>
 
                 <p className="fs-4 text-muted">
-                  Report abandoned bicycles, track your reports, scan QR codes,
-                  and claim ownership.
+                  Report abandoned bicycles, scan QR notices, and submit ownership responses.
                 </p>
 
                 <ul className="fs-5 text-muted">
-                  <li>Report suspected bicycles with photos</li>
-                  <li>Track report status and updates</li>
-                  <li>Scan QR codes for bicycle information</li>
+                  <li>Report suspected abandoned bicycles</li>
+                  <li>Scan QR codes for bicycle notice information</li>
                   <li>Submit ownership claims</li>
+                  <li>Report bicycles that are not abandoned</li>
                 </ul>
               </div>
             </Link>
