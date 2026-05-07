@@ -218,3 +218,60 @@ body {
     width: 100%;
   }
 }
+
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 40px 16px 32px;
+  }
+
+  .hero-title {
+    font-size: 36px;
+  }
+
+  .hero-subtitle {
+    font-size: 20px;
+  }
+
+  .portal-card {
+    padding: 24px;
+  }
+
+  .notice-page {
+    width: 100%;
+    padding: 24px;
+  }
+
+  .notice-title {
+    font-size: 32px;
+  }
+
+  .notice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notice-qr-section {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .notice-qr,
+  .notice-qr-placeholder {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  .notice-qr {
+    padding: 0;
+  }
+
+  .notice-section-title {
+    font-size: 24px;
+  }
+
+  .notice-body,
+  .notice-url {
+    font-size: 16px;
+  }
+}
