@@ -1,78 +1,155 @@
 import { useState } from "react";
 
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
+const initialForm = {
+  blockNumber: "",
+  location: "",
+  description: "",
+};
+
 function ReportBike() {
-  const [blockNumber, setBlockNumber] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
+  const [formData, setFormData] = useState(initialForm);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((currentFormData) => ({
+      ...currentFormData,
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage(null);
+
+    const report = {
+      blockNumber: formData.blockNumber.trim(),
+      location: formData.location.trim(),
+      description: formData.description.trim(),
+    };
+
+    if (!report.blockNumber || !report.location || !report.description) {
+      setMessage({
+        type: "danger",
+        text: "Please complete all fields before submitting your report.",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       await addDoc(collection(db, "reports"), {
-        blockNumber,
-        location,
-        description,
+        ...report,
         status: "Reported",
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
-      alert("Report submitted successfully!");
-
-      setBlockNumber("");
-      setLocation("");
-      setDescription("");
-
+      setFormData(initialForm);
+      setMessage({
+        type: "success",
+        text: "Report submitted successfully. Town Council staff can now review it.",
+      });
     } catch (error) {
       console.error("Error adding report: ", error);
+      setMessage({
+        type: "danger",
+        text: "We could not submit your report right now. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div>
-      <h1>Report Abandoned Bicycle</h1>
-
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Block Number</label>
-          <br />
-          <input
-            type="text"
-            value={blockNumber}
-            onChange={(e) => setBlockNumber(e.target.value)}
-          />
+    <div className="container py-5">
+      <div className="portal-card mx-auto" style={{ maxWidth: "860px" }}>
+        <div className="mb-4">
+          <h1 className="fw-bold mb-3">Report Abandoned Bicycle</h1>
+          <p className="text-muted fs-5 mb-0">
+            Share the bicycle location and any identifying details so staff can
+            inspect it quickly.
+          </p>
         </div>
 
-        <br />
+        {message && (
+          <div className={`alert alert-${message.type}`} role="alert">
+            {message.text}
+          </div>
+        )}
 
-        <div>
-          <label>Location</label>
-          <br />
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="row g-4">
+            <div className="col-md-6">
+              <label className="form-label" htmlFor="blockNumber">
+                Block Number
+              </label>
+              <input
+                className="form-control form-control-lg"
+                id="blockNumber"
+                name="blockNumber"
+                type="text"
+                placeholder="Example: 838"
+                value={formData.blockNumber}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        <br />
+            <div className="col-md-6">
+              <label className="form-label" htmlFor="location">
+                Exact Location
+              </label>
+              <input
+                className="form-control form-control-lg"
+                id="location"
+                name="location"
+                type="text"
+                placeholder="Example: 838 Void Deck"
+                value={formData.location}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        <div>
-          <label>Description</label>
-          <br />
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
+            <div className="col-12">
+              <label className="form-label" htmlFor="description">
+                Bicycle Description
+              </label>
+              <textarea
+                className="form-control"
+                id="description"
+                name="description"
+                rows="3"
+                placeholder="Example: Rusty red mountain bike with flat tyres and a missing seat."
+                value={formData.description}
+                onChange={handleChange}
+                required
+              />
+              <div className="form-text">
+                Include colour, condition or anything that
+                helps staff identify the bicycle.
+              </div>
+            </div>
+          </div>
 
-        <br />
-
-        <button type="submit">Submit Report</button>
-      </form>
+          <div className="d-flex flex-column flex-sm-row align-items-sm-center gap-3 mt-4">
+            <button
+              className="btn btn-primary btn-lg px-4"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit Report"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
