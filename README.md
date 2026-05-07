@@ -131,3 +131,51 @@ Always pull latest changes before starting work:
 ```bash
 git pull origin main
 ```
+
+---
+
+## 🛠 Git Troubleshooting
+
+### If `git pull` does not show teammate changes
+
+Try:
+
+```bash
+git fetch origin
+git pull origin main
+```
+
+---
+
+### If your local files are broken or out of sync
+
+Reset your local project to exactly match the latest GitHub version:
+
+```bash
+git reset --hard origin/main
+```
+
+⚠️ Warning:
+This will overwrite local uncommitted changes.
+
+Only use this if:
+- your work is already pushed to GitHub
+- OR you do not need your local uncommitted changes
+
+---
+
+### Recommended Daily Workflow
+
+Before starting work:
+
+```bash
+git pull origin main
+```
+
+After finishing work:
+
+```bash
+git add .
+git commit -m "Your commit message"
+git push
+```
