@@ -8,6 +8,7 @@ import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./App.css";
 import QRPage from "./pages/QRPage";
+import ScanQRCode from "./pages/ScanQRCode";
 import ClaimBike from "./pages/ClaimBike";
 import ReportNotAbandoned from "./pages/ReportNotAbandoned";
 import PrintNotice from "./pages/PrintNotice";
@@ -30,6 +31,7 @@ function App() {
           }
         />
         <Route path="/report" element={<ReportBike />} />
+        <Route path="/scan" element={<ScanQRCode />} />
         <Route path="/qr/:id" element={<QRPage />} />
         <Route
           path="/notice/:id"

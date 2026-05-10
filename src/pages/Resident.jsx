@@ -40,22 +40,24 @@ function Resident() {
         </div>
 
         <div className="col-md-6">
-          <div className="portal-card h-100">
+          <Link to="/scan" className="text-decoration-none">
+            <div className="portal-card h-100">
 
-            <div className="icon-box icon-green mb-4">
-              QR
+              <div className="icon-box icon-green mb-4">
+                QR
+              </div>
+
+              <h3 className="fw-bold">
+                Scan QR Code
+              </h3>
+
+              <p className="text-muted fs-5">
+                Scan QR tags attached to bicycles to view notice periods, claim ownership,
+                or report that a bicycle is not abandoned.
+              </p>
+
             </div>
-
-            <h3 className="fw-bold">
-              Scan QR Code
-            </h3>
-
-            <p className="text-muted fs-5">
-              Scan QR tags attached to bicycles to view notice periods, claim ownership,
-              or report that a bicycle is not abandoned.
-            </p>
-
-          </div>
+          </Link>
         </div>
 
       </div>
