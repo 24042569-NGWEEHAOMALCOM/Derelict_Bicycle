@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/firebase";
+import { uploadImageToCloudinary } from "../services/cloudinaryService";
 
 const initialForm = {
   blockNumber: "",
@@ -11,6 +12,7 @@ const initialForm = {
 
 function ReportBike() {
   const [formData, setFormData] = useState(initialForm);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -21,6 +23,12 @@ function ReportBike() {
       ...currentFormData,
       [name]: value,
     }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    setSelectedImage(file);
   };
 
   const handleSubmit = async (e) => {
@@ -44,14 +52,21 @@ function ReportBike() {
     setIsSubmitting(true);
 
     try {
+      const imageUrl = selectedImage
+        ? await uploadImageToCloudinary(selectedImage)
+        : "";
+
       await addDoc(collection(db, "reports"), {
         ...report,
+        imageUrl,
         status: "Reported",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
       setFormData(initialForm);
+      setSelectedImage(null);
+      e.target.reset();
       setMessage({
         type: "success",
         text: "Report submitted successfully. Town Council staff will review it.",
@@ -137,6 +152,30 @@ function ReportBike() {
                 helps staff identify the bicycle.
               </div>
             </div>
+
+            <div className="col-12">
+              <label className="form-label" htmlFor="bicycleImage">
+                Bicycle Image
+              </label>
+              <input
+                accept="image/*"
+                className="form-control form-control-lg"
+                id="bicycleImage"
+                name="bicycleImage"
+                type="file"
+                onChange={handleImageChange}
+              />
+              <div className="form-text">
+                Upload a clear photo of the bicycle if available.
+              </div>
+
+              {selectedImage && (
+                <div className="selected-image-note mt-3">
+                  Selected image:{" "}
+                  <span className="fw-semibold">{selectedImage.name}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="d-flex flex-column flex-sm-row align-items-sm-center gap-3 mt-4">
@@ -145,7 +184,7 @@ function ReportBike() {
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Submitting..." : "Submit Report"}
+              {isSubmitting ? "Uploading..." : "Submit Report"}
             </button>
           </div>
         </form>

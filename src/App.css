@@ -60,6 +60,23 @@ body {
   min-height: 380px;
 }
 
+.report-image {
+  border-radius: 8px;
+  display: block;
+  max-height: 420px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.selected-image-note {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #334155;
+  padding: 12px 14px;
+  word-break: break-word;
+}
+
 .icon-box {
   width: 72px;
   height: 72px;
@@ -272,6 +289,10 @@ body {
 
   .portal-card {
     padding: 24px;
+  }
+
+  .report-image {
+    max-height: 280px;
   }
 
   .notice-page {

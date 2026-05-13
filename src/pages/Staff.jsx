@@ -560,6 +560,12 @@ function Staff() {
                           Block {report.blockNumber || "N/A"} -{" "}
                           {report.location || "No location"}
                         </p>
+
+                        {report.imageUrl && (
+                          <p className="small mb-0 mt-1">
+                            Image attached
+                          </p>
+                        )}
                       </div>
 
                       <span className={`badge ${getBadgeClass(report.status)}`}>
@@ -636,6 +642,28 @@ function Staff() {
                         <p className="mb-0">
                           {selectedReport.description || "No description provided."}
                         </p>
+                      </div>
+                    </div>
+
+                    <div className="col-12">
+                      <div className="border rounded-3 p-3">
+                        <p className="text-muted small text-uppercase mb-2">
+                          Uploaded Image
+                        </p>
+
+                        {selectedReport.imageUrl ? (
+                          <img
+                            className="report-image"
+                            src={selectedReport.imageUrl}
+                            alt={`Reported bicycle at Block ${
+                              selectedReport.blockNumber || "unknown"
+                            }`}
+                          />
+                        ) : (
+                          <p className="text-muted mb-0">
+                            No image was uploaded for this report.
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
