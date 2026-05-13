@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
+import NotificationSystem from "../components/NotificationSystem";
+import MapDisplay from "../components/MapDisplay";
 
 const statusOptions = [
   "All",
@@ -195,6 +197,9 @@ function Staff() {
       report.location,
       report.description,
       report.status,
+      report.condition,
+      report.hasLock,
+      report.licensePlate,
     ]
       .filter(Boolean)
       .join(" ")
@@ -270,14 +275,18 @@ function Staff() {
 
   return (
     <div className="container py-5">
-      <div className="mb-5">
-        <h1 className="fw-bold display-5">
-          Staff Dashboard
-        </h1>
+      <div className="d-flex justify-content-between align-items-center mb-5">
+        <div>
+          <h1 className="fw-bold display-5">
+            Staff Dashboard
+          </h1>
 
-        <p className="text-muted fs-4">
-          Manage reported bicycles, update statuses, and track case progress.
-        </p>
+          <p className="text-muted fs-4">
+            Manage reported bicycles, update statuses, and track case progress.
+          </p>
+        </div>
+
+        <NotificationSystem />
       </div>
 
       <div className="row g-4 mb-5">
@@ -566,6 +575,12 @@ function Staff() {
                             Image attached
                           </p>
                         )}
+
+                        {report.bicycleType && (
+                          <p className="small mb-0 mt-1 text-muted">
+                            {report.condition || 'Unknown condition'}
+                          </p>
+                        )}
                       </div>
 
                       <span className={`badge ${getBadgeClass(report.status)}`}>
@@ -644,6 +659,49 @@ function Staff() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Asset Details Section */}
+                    {(selectedReport.bicycleType || selectedReport.condition || selectedReport.hasLock || selectedReport.licensePlate || selectedReport.gpsLocation) && (
+                      <div className="col-12">
+                        <div className="border rounded-3 p-3">
+                          <p className="text-muted small text-uppercase mb-3">
+                            Asset Details
+                          </p>
+                          <div className="row g-3">
+                            {selectedReport.condition && (
+                              <div className="col-md-6 col-lg-3">
+                                <p className="text-muted small text-uppercase mb-1">Condition</p>
+                                <p className="fw-semibold mb-0">{selectedReport.condition}</p>
+                              </div>
+                            )}
+                            {selectedReport.hasLock && (
+                              <div className="col-md-6 col-lg-3">
+                                <p className="text-muted small text-uppercase mb-1">Lock Status</p>
+                                <p className="fw-semibold mb-0">{selectedReport.hasLock}</p>
+                              </div>
+                            )}
+                            {selectedReport.licensePlate && (
+                              <div className="col-md-6 col-lg-3">
+                                <p className="text-muted small text-uppercase mb-1">License Plate</p>
+                                <p className="fw-semibold mb-0">{selectedReport.licensePlate}</p>
+                              </div>
+                            )}
+                            {selectedReport.gpsLocation && (
+                              <div className="col-12">
+                                <p className="text-muted small text-uppercase mb-2">GPS Coordinates</p>
+                                <p className="fw-semibold mb-2">
+                                  {selectedReport.gpsLocation.latitude.toFixed(6)}, {selectedReport.gpsLocation.longitude.toFixed(6)}
+                                </p>
+                                <MapDisplay
+                                  latitude={selectedReport.gpsLocation.latitude}
+                                  longitude={selectedReport.gpsLocation.longitude}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="col-12">
                       <div className="border rounded-3 p-3">
