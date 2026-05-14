@@ -3,8 +3,34 @@ import { useState, useEffect } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { uploadImageToCloudinary } from "../services/cloudinaryService";
-import MapDisplay from "../components/MapDisplay";
 import { InteractiveMapDisplay } from "../components/MapDisplay";
+
+const reportConfigs = {
+  abandoned: {
+    caseType: "abandoned",
+    title: "Report Abandoned Bicycle",
+    subtitle:
+      "Share the bicycle location and any identifying details so staff can inspect it quickly.",
+    descriptionPlaceholder:
+      "Example: Rusty red mountain bike with flat tyres and a missing seat.",
+    successText:
+      "Report submitted successfully! Town Council staff will review it within 24 hours.",
+    notificationBody:
+      "Your bicycle report has been submitted. Staff will review it soon.",
+  },
+  improperParking: {
+    caseType: "improperParking",
+    title: "Report Improperly Parked Bicycle",
+    subtitle:
+      "Report bicycles that are blocking pathways, locked onto pipes, blocking electrical rooms, or causing obstruction.",
+    descriptionPlaceholder:
+      "Example: Blue foldable bicycle blocking the electrical room door.",
+    successText:
+      "Improper parking report submitted successfully! Town Council staff will review it within 24 hours.",
+    notificationBody:
+      "Your improper parking report has been submitted. Staff will review it soon.",
+  },
+};
 
 const initialForm = {
   blockNumber: "",
@@ -15,13 +41,13 @@ const initialForm = {
   licensePlate: "",
 };
 
-function ReportBike() {
+function ReportBike({ reportType = "abandoned" }) {
+  const config = reportConfigs[reportType] || reportConfigs.abandoned;
   const [formData, setFormData] = useState(initialForm);
   const [selectedImage, setSelectedImage] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [gpsLocation, setGpsLocation] = useState(null);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   useEffect(() => {
     // Request notification permission on component mount
@@ -37,42 +63,6 @@ function ReportBike() {
       ...currentFormData,
       [name]: value,
     }));
-  };
-
-  const getCurrentLocation = () => {
-    setIsGettingLocation(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setGpsLocation({ latitude, longitude });
-          setMessage({
-            type: "success",
-            text: "GPS location captured successfully!",
-          });
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          setMessage({
-            type: "warning",
-            text: "Could not get GPS location. Please enter location manually.",
-          });
-          setIsGettingLocation(false);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000, // 5 minutes
-        }
-      );
-    } else {
-      setMessage({
-        type: "danger",
-        text: "GPS is not supported by this browser.",
-      });
-      setIsGettingLocation(false);
-    }
   };
 
   const compressImage = (file) => {
@@ -154,11 +144,23 @@ function ReportBike() {
       blockNumber: formData.blockNumber.trim(),
       location: formData.location.trim(),
       description: formData.description.trim(),
-      bicycleType: formData.bicycleType,
+      bicycleType: "",
       hasLock: formData.hasLock,
       condition: formData.condition,
       licensePlate: formData.licensePlate.trim(),
       gpsLocation: gpsLocation,
+      caseType: config.caseType,
+      caseTypeLabel:
+        config.caseType === "improperParking"
+          ? "Improperly Parked Bicycle"
+          : "Abandoned Bicycle",
+      compliancePoints: config.caseType === "improperParking" ? 100 : null,
+      compliancePointsDeducted: config.caseType === "improperParking" ? 0 : null,
+      offencePointsDeducted: config.caseType === "improperParking" ? 0 : null,
+      monthlyStartingCompliancePoints: config.caseType === "improperParking" ? 100 : null,
+      monthlyRecoveryPoints: config.caseType === "improperParking" ? 10 : null,
+      enforcementReviewRequired: false,
+      responseHistory: config.caseType === "improperParking" ? [] : null,
     };
 
     if (!report.blockNumber || !report.location || !report.description) {
@@ -194,14 +196,14 @@ function ReportBike() {
       // Browser notification
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Report Submitted Successfully!", {
-          body: "Your bicycle report has been submitted. Staff will review it soon.",
+          body: config.notificationBody,
           icon: "/vite.svg",
         });
       }
 
       setMessage({
         type: "success",
-        text: "Report submitted successfully! Town Council staff will review it within 24 hours.",
+        text: config.successText,
       });
     } catch (error) {
       console.error("Error adding report: ", error);
@@ -218,10 +220,9 @@ function ReportBike() {
     <div className="container py-5">
       <div className="portal-card mx-auto" style={{ maxWidth: "860px" }}>
         <div className="mb-4">
-          <h1 className="fw-bold mb-3">Report Abandoned Bicycle</h1>
+          <h1 className="fw-bold mb-3">{config.title}</h1>
           <p className="text-muted fs-5 mb-0">
-            Share the bicycle location and any identifying details so staff can
-            inspect it quickly.
+            {config.subtitle}
           </p>
         </div>
 
@@ -354,7 +355,7 @@ function ReportBike() {
                 id="description"
                 name="description"
                 rows="3"
-                placeholder="Example: Rusty red mountain bike with flat tyres and a missing seat."
+                placeholder={config.descriptionPlaceholder}
                 value={formData.description}
                 onChange={handleChange}
                 required

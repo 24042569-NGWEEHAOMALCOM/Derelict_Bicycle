@@ -27,7 +27,7 @@ function Navbar() {
         <div className="logo-box">NS</div>
         <div>
           <h1 className="m-0 fw-bold">Nee Soon Town Council</h1>
-          <p className="m-0 text-muted">Derelict Bicycle Management</p>
+          <p className="m-0 text-muted">Bicycle Management</p>
         </div>
       </div>
 

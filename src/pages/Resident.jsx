@@ -10,13 +10,13 @@ function Resident() {
         </h1>
 
         <p className="text-muted fs-4">
-          Report abandoned bicycles and respond to QR notices when needed.
+          Report bicycle issues and respond to QR notices when needed.
         </p>
       </div>
 
       <div className="row g-4">
 
-        <div className="col-md-6">
+        <div className="col-md-4">
           <Link
             to="/report"
             className="text-decoration-none"
@@ -28,7 +28,7 @@ function Resident() {
               </div>
 
               <h3 className="fw-bold">
-                Report Bicycle
+                Report Abandoned Bicycle
               </h3>
 
               <p className="text-muted fs-5">
@@ -39,7 +39,30 @@ function Resident() {
           </Link>
         </div>
 
-        <div className="col-md-6">
+        <div className="col-md-4">
+          <Link
+            to="/report/improper-parking"
+            className="text-decoration-none"
+          >
+            <div className="portal-card h-100">
+
+              <div className="icon-box icon-blue mb-4">
+                Park
+              </div>
+
+              <h3 className="fw-bold">
+                Report Improper Parking
+              </h3>
+
+              <p className="text-muted fs-5">
+                Report bicycles blocking pathways, doors, pipes, or causing obstruction.
+              </p>
+
+            </div>
+          </Link>
+        </div>
+
+        <div className="col-md-4">
           <Link to="/scan" className="text-decoration-none">
             <div className="portal-card h-100">
 
@@ -52,8 +75,8 @@ function Resident() {
               </h3>
 
               <p className="text-muted fs-5">
-                Scan QR tags attached to bicycles to view notice periods, claim ownership,
-                or report that a bicycle is not abandoned.
+                Scan QR tags attached to bicycles to view notices, claim ownership,
+                or acknowledge improper parking warnings.
               </p>
 
             </div>

@@ -13,6 +13,7 @@ import ClaimBike from "./pages/ClaimBike";
 import ReportNotAbandoned from "./pages/ReportNotAbandoned";
 import PrintNotice from "./pages/PrintNotice";
 import Login from "./pages/Login";
+import AcknowledgeParking from "./pages/AcknowledgeParking";
 
 function App() {
   return (
@@ -31,6 +32,10 @@ function App() {
           }
         />
         <Route path="/report" element={<ReportBike />} />
+        <Route
+          path="/report/improper-parking"
+          element={<ReportBike reportType="improperParking" />}
+        />
         <Route path="/scan" element={<ScanQRCode />} />
         <Route path="/qr/:id" element={<QRPage />} />
         <Route
@@ -43,6 +48,7 @@ function App() {
         />
         <Route path="/claim/:id" element={<ClaimBike />} />
         <Route path="/not-abandoned/:id" element={<ReportNotAbandoned />} />
+        <Route path="/acknowledge/:id" element={<AcknowledgeParking />} />
       </Routes>
     </BrowserRouter>
   );

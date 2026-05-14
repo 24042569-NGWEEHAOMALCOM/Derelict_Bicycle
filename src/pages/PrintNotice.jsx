@@ -67,6 +67,13 @@ function PrintNotice() {
   }
 
   const canPrintNotice = report.status === "Tagged" && report.qrCodeImage;
+  const isImproperParking = report.caseType === "improperParking";
+  const noticeTitle = isImproperParking
+    ? "Improper Parking Notice"
+    : "Derelict Bicycle Notice";
+  const noticeSubtitle = isImproperParking
+    ? "This bicycle has been verified as improperly parked and causing obstruction."
+    : "This bicycle has been identified for abandoned bicycle review.";
 
   return (
     <div className="container py-5">
@@ -98,17 +105,18 @@ function PrintNotice() {
           </p>
 
           <h1 className="notice-title">
-            Derelict Bicycle Notice
+            {noticeTitle}
           </h1>
 
           <p className="notice-subtitle mb-0">
-            This bicycle has been identified for abandoned bicycle review.
+            {noticeSubtitle}
           </p>
         </div>
 
         <div className="notice-alert">
-          If this bicycle belongs to you, scan the QR code and submit a response before
-          the notice period ends.
+          {isImproperParking
+            ? "If this bicycle belongs to you, scan the QR code and submit a response to acknowledge that a warning has been given."
+            : "If this bicycle belongs to you, scan the QR code and submit a response before the notice period ends."}
         </div>
 
         <div className="notice-grid">
@@ -131,6 +139,25 @@ function PrintNotice() {
             <p className="notice-label">Location</p>
             <p className="notice-value">{report.location || "Not provided"}</p>
           </div>
+
+          <div>
+            <p className="notice-label">Case Type</p>
+            <p className="notice-value">
+              {isImproperParking ? "Improperly Parked Bicycle" : "Abandoned Bicycle"}
+            </p>
+          </div>
+
+          <div>
+            <p className="notice-label">Compliance Points</p>
+            <p className="notice-value">{report.compliancePoints ?? 100}/100</p>
+          </div>
+
+          {isImproperParking && (
+            <div>
+              <p className="notice-label">Monthly Recovery</p>
+              <p className="notice-value">+{report.monthlyRecoveryPoints ?? 10} if no offences</p>
+            </div>
+          )}
 
           <div>
             <p className="notice-label">Tagged Date</p>
@@ -162,7 +189,9 @@ function PrintNotice() {
             </h2>
 
             <p className="notice-body">
-              Use this QR code to claim the bicycle or report that it is not abandoned.
+              {isImproperParking
+                ? "Use this QR code to acknowledge the improper parking warning and view your compliance points."
+                : "Use this QR code to claim the bicycle or report that it is not abandoned."}
             </p>
 
             <p className="notice-url">
@@ -172,8 +201,9 @@ function PrintNotice() {
         </div>
 
         <div className="notice-footer">
-          Bicycle may be removed by Town Council after the notice period if no valid
-          response is received.
+          {isImproperParking
+            ? "Residents start each month at 100/100. Deductions are -5 for the 1st offence, -10 for the 2nd offence, and larger deductions for repeated offences. A score of 0 will be flagged for Town Council review."
+            : "Bicycle may be removed by Town Council after the notice period if no valid response is received."}
         </div>
       </div>
     </div>

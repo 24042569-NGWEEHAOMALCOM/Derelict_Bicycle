@@ -10,7 +10,7 @@ function NotificationSystem() {
     // Listen for new reports that need attention
     const q = query(
       collection(db, "reports"),
-      where("status", "in", ["Reported", "Verified"]),
+      where("status", "in", ["Reported", "Verified", "Verified: Improperly Parked"]),
       orderBy("createdAt", "desc")
     );
 

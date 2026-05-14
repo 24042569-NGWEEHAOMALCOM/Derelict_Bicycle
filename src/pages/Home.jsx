@@ -6,7 +6,7 @@ function Home() {
       <section className="hero-section">
         <h1 className="hero-title">Derelict Bicycle Management System</h1>
         <p className="hero-subtitle">
-          A digital solution for managing abandoned bicycles in Nee Soon Town Council.
+          A digital solution for managing abandoned and improperly parked bicycles in Nee Soon Town Council.
           <br />
           Improving efficiency for staff and transparency for residents.
         </p>
@@ -23,13 +23,14 @@ function Home() {
                 </div>
 
                 <p className="fs-4 text-muted">
-                  Report abandoned bicycles, scan QR notices, and submit ownership responses.
+                  Report abandoned or improperly parked bicycles, scan QR notices, and submit ownership responses.
                 </p>
 
                 <ul className="fs-5 text-muted">
                   <li>Report suspected abandoned bicycles</li>
+                  <li>Report bicycles causing obstruction</li>
                   <li>Scan QR codes for bicycle notice information</li>
-                  <li>Submit ownership claims</li>
+                  <li>Submit ownership claims or parking acknowledgements</li>
                   <li>Report bicycles that are not abandoned</li>
                 </ul>
               </div>
@@ -45,12 +46,13 @@ function Home() {
                 </div>
 
                 <p className="fs-4 text-muted">
-                  Manage bicycle lifecycle, tag and remove bicycles, and view analytics.
+                  Manage bicycle lifecycle, tag notices, track warnings, and view analytics.
                 </p>
 
                 <ul className="fs-5 text-muted">
                   <li>Dashboard with real-time statistics</li>
                   <li>Tag bicycles and generate QR codes</li>
+                  <li>Record improper parking warnings and compliance points</li>
                   <li>Manage removals and storage</li>
                   <li>Analytics and hotspot mapping</li>
                 </ul>

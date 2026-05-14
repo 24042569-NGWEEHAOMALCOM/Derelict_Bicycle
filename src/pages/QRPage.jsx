@@ -9,6 +9,9 @@ const finalStatuses = [
   "Closed",
   "Closed - Claimed",
   "Closed - Not Abandoned",
+  "Acknowledged - 1st Warning",
+  "Acknowledged - 2nd Warning",
+  "Acknowledged - Repeated Offence",
 ];
 
 const formatDate = (dateValue) => {
@@ -83,6 +86,7 @@ function QRPage() {
   const hasValidExpiryDate = expiryDate && !Number.isNaN(expiryDate.getTime());
   const isExpired = hasValidExpiryDate && today > expiryDate;
   const isFinalStatus = finalStatuses.includes(report.status);
+  const isImproperParking = report.caseType === "improperParking";
 
   return (
     <div className="container py-5">
@@ -90,8 +94,17 @@ function QRPage() {
       <div className="portal-card">
 
         <h1 className="fw-bold mb-4">
-          Bicycle Notice Information
+          {isImproperParking
+            ? "Improperly Parked Bicycle Notice"
+            : "Bicycle Notice Information"}
         </h1>
+
+        {isImproperParking && (
+          <div className="alert alert-warning">
+            If this bicycle belongs to you, submit a response to acknowledge
+            that a warning has been given.
+          </div>
+        )}
 
         <p className="fs-5">
           <strong>Report ID:</strong> {report.id}
@@ -109,6 +122,32 @@ function QRPage() {
           <strong>Status:</strong> {report.status}
         </p>
 
+        <p className="fs-5">
+          <strong>Compliance Points:</strong> {report.compliancePoints ?? 100}/100
+        </p>
+
+        {isImproperParking && (
+          <div className="border rounded-3 p-3 mb-4 bg-light">
+            <p className="fw-bold mb-2">
+              Monthly Compliance Score
+            </p>
+
+            <p className="mb-0">
+              Residents start each month with 100/100 points. First offences
+              deduct 5 points, second offences deduct 10 points, and repeated
+              offences deduct more. If no offences are recorded, 10 recovery
+              points can be added monthly.
+            </p>
+          </div>
+        )}
+
+        {isImproperParking && report.enforcementReviewRequired && (
+          <div className="alert alert-danger">
+            This compliance score has reached 0 and has been flagged for Town
+            Council review and possible enforcement action.
+          </div>
+        )}
+
         {hasValidExpiryDate && (
           <p className="fs-5">
             <strong>Notice Expiry Date:</strong>{" "}
@@ -120,7 +159,9 @@ function QRPage() {
 
           {isFinalStatus ? (
             <div className="alert alert-success">
-              This case is already closed. No further resident action is required.
+              {isImproperParking && report.status?.startsWith("Acknowledged")
+                ? "Your acknowledgement has been recorded. No further action is required for this notice."
+                : "This case is already closed. No further resident action is required."}
             </div>
           ) : !hasValidExpiryDate ? (
             <div className="alert alert-info">
@@ -138,7 +179,7 @@ function QRPage() {
 
         </div>
 
-        {!isFinalStatus && (
+        {!isFinalStatus && !isImproperParking && (
           <div className="d-flex flex-wrap gap-3 mt-4">
 
             <a href={`/claim/${report.id}`} className="btn btn-success">
@@ -149,6 +190,14 @@ function QRPage() {
               Report Not Abandoned
             </a>
 
+          </div>
+        )}
+
+        {!isFinalStatus && isImproperParking && (
+          <div className="d-flex flex-wrap gap-3 mt-4">
+            <a href={`/acknowledge/${report.id}`} className="btn btn-warning">
+              Submit Acknowledgement
+            </a>
           </div>
         )}
 

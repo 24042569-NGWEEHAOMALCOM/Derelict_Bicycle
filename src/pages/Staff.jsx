@@ -10,19 +10,28 @@ const statusOptions = [
   "All",
   "Reported",
   "Verified",
+  "Verified: Improperly Parked",
   "Tagged",
+  "Acknowledged - 1st Warning",
+  "Acknowledged - 2nd Warning",
+  "Acknowledged - Repeated Offence",
   "Removed",
   "Closed",
   "Closed - Claimed",
   "Closed - Not Abandoned",
 ];
 
+const verifiedImproperParkingStatus = "Verified: Improperly Parked";
+const firstWarningStatus = "Acknowledged - 1st Warning";
+const secondWarningStatus = "Acknowledged - 2nd Warning";
+const repeatedOffenceStatus = "Acknowledged - Repeated Offence";
+
 const statusActions = {
-  Reported: [
+  Verified: [
     {
-      label: "Mark Verified",
-      status: "Verified",
-      className: "btn btn-info btn-sm text-white",
+      label: "Mark Tagged",
+      status: "Tagged",
+      className: "btn btn-warning btn-sm",
     },
     {
       label: "Close Case",
@@ -30,7 +39,7 @@ const statusActions = {
       className: "btn btn-success btn-sm",
     },
   ],
-  Verified: [
+  [verifiedImproperParkingStatus]: [
     {
       label: "Mark Tagged",
       status: "Tagged",
@@ -64,6 +73,69 @@ const statusActions = {
   Closed: [],
   "Closed - Claimed": [],
   "Closed - Not Abandoned": [],
+  [firstWarningStatus]: [
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+  [secondWarningStatus]: [
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+  [repeatedOffenceStatus]: [
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-success btn-sm",
+    },
+  ],
+};
+
+const isImproperParkingReport = (report) => report?.caseType === "improperParking";
+
+const getReportTypeLabel = (report) =>
+  isImproperParkingReport(report)
+    ? "Improperly Parked Bicycle"
+    : "Abandoned Bicycle";
+
+const getStatusActions = (report) => {
+  if (!report) return [];
+
+  if (report.status === "Reported") {
+    return [
+      {
+        label: isImproperParkingReport(report)
+          ? "Mark Verified: Improperly Parked"
+          : "Mark Verified",
+        status: isImproperParkingReport(report)
+          ? verifiedImproperParkingStatus
+          : "Verified",
+        className: "btn btn-info btn-sm text-white",
+      },
+      {
+        label: "Close Case",
+        status: "Closed",
+        className: "btn btn-success btn-sm",
+      },
+    ];
+  }
+
+  if (report.status === "Tagged" && isImproperParkingReport(report)) {
+    return [
+      {
+        label: "Close Case",
+        status: "Closed",
+        className: "btn btn-success btn-sm",
+      },
+    ];
+  }
+
+  return statusActions[report.status] || [];
 };
 
 const getTopCounts = (items, fieldName, limit = 5) => {
@@ -111,7 +183,7 @@ function Staff() {
 
   const updateStatus = async (reportId, newStatus) => {
     const currentReport = reports.find((report) => report.id === reportId);
-    const allowedActions = statusActions[currentReport?.status] || [];
+    const allowedActions = getStatusActions(currentReport);
     const isAllowedStatus = allowedActions.some(
       (action) => action.status === newStatus
     );
@@ -197,9 +269,13 @@ function Staff() {
       report.location,
       report.description,
       report.status,
+      getReportTypeLabel(report),
       report.condition,
       report.hasLock,
       report.licensePlate,
+      report.warningLevel,
+      report.compliancePoints,
+      report.enforcementReviewRequired ? "enforcement review" : "",
     ]
       .filter(Boolean)
       .join(" ")
@@ -217,8 +293,13 @@ function Staff() {
     selectedReport?.claimPhone ||
     selectedReport?.claimProof;
   const hasNotAbandonedResponse = selectedReport?.notAbandonedReason;
-  const hasResidentResponse = hasClaimResponse || hasNotAbandonedResponse;
-  const availableStatusActions = statusActions[selectedReport?.status] || [];
+  const hasAcknowledgementResponse =
+    selectedReport?.acknowledgementName ||
+    selectedReport?.acknowledgementPhone ||
+    selectedReport?.responseHistory?.length > 0;
+  const hasResidentResponse =
+    hasClaimResponse || hasNotAbandonedResponse || hasAcknowledgementResponse;
+  const availableStatusActions = getStatusActions(selectedReport);
   const statusCounts = statusOptions
     .filter((status) => status !== "All")
     .map((status) => ({
@@ -255,8 +336,20 @@ function Staff() {
     if (status === "Verified")
       return "bg-info";
 
+    if (status === verifiedImproperParkingStatus)
+      return "bg-info text-white";
+
     if (status === "Tagged")
       return "bg-warning text-dark";
+
+    if (status === firstWarningStatus)
+      return "bg-warning text-dark";
+
+    if (status === secondWarningStatus)
+      return "bg-danger";
+
+    if (status === repeatedOffenceStatus)
+      return "bg-dark";
 
     if (status === "Removed")
       return "bg-danger";
@@ -570,6 +663,10 @@ function Staff() {
                           {report.location || "No location"}
                         </p>
 
+                        <p className="small mb-0 mt-1 text-muted">
+                          {getReportTypeLabel(report)}
+                        </p>
+
                         {report.imageUrl && (
                           <p className="small mb-0 mt-1">
                             Image attached
@@ -615,6 +712,10 @@ function Staff() {
 
                       <p className="text-muted mb-0">
                         Report ID: <span className="fw-semibold">{selectedReport.id}</span>
+                      </p>
+
+                      <p className="text-muted mb-0">
+                        Case Type: <span className="fw-semibold">{getReportTypeLabel(selectedReport)}</span>
                       </p>
                     </div>
 
@@ -733,7 +834,7 @@ function Staff() {
 
                     {!hasResidentResponse ? (
                       <div className="alert alert-secondary mb-0">
-                        No claim or not-abandoned response has been submitted for this report.
+                        No claim, not-abandoned response, or acknowledgement has been submitted for this report.
                       </div>
                     ) : (
                       <div className="row g-3">
@@ -823,6 +924,127 @@ function Staff() {
                               <p className="mb-0">
                                 {formatDate(selectedReport.notAbandonedAt)}
                               </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {hasAcknowledgementResponse && (
+                          <div className="col-12">
+                            <div className="border rounded-3 p-3 bg-light">
+                              <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+                                <h4 className="h6 fw-bold mb-0">
+                                  Improper Parking Acknowledgement
+                                </h4>
+
+                                <span className="badge bg-warning text-dark">
+                                  {selectedReport.warningLevel || "Warning recorded"}
+                                </span>
+                              </div>
+
+                              {selectedReport.enforcementReviewRequired && (
+                                <div className="alert alert-danger">
+                                  Compliance score has reached 0. This case is
+                                  automatically flagged for further review and
+                                  possible Town Council enforcement action.
+                                </div>
+                              )}
+
+                              <div className="row g-3">
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Owner Name
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.acknowledgementName || "Not provided"}
+                                  </p>
+                                </div>
+
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Phone
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.acknowledgementPhone || "Not provided"}
+                                  </p>
+                                </div>
+
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Compliance Points
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.compliancePoints ?? 100}/100
+                                  </p>
+                                </div>
+
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Total Points Deducted
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.compliancePointsDeducted ?? 0}
+                                  </p>
+                                </div>
+
+                                <div className="col-md-6">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Latest Offence Deduction
+                                  </p>
+
+                                  <p className="fw-semibold mb-0">
+                                    {selectedReport.offencePointsDeducted ?? selectedReport.compliancePointsDeducted ?? 0}
+                                  </p>
+                                </div>
+
+                                <div className="col-12">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Monthly Recovery Rule
+                                  </p>
+
+                                  <p className="mb-0">
+                                    +{selectedReport.monthlyRecoveryPoints ?? 10} points may be recovered monthly when no offences are recorded.
+                                  </p>
+                                </div>
+
+                                <div className="col-12">
+                                  <p className="text-muted small text-uppercase mb-1">
+                                    Response History
+                                  </p>
+
+                                  {selectedReport.responseHistory?.length > 0 ? (
+                                    <div className="table-responsive">
+                                      <table className="table table-sm align-middle mb-0">
+                                        <thead>
+                                          <tr>
+                                            <th>Warning</th>
+                                            <th>Deduction</th>
+                                            <th>Points</th>
+                                            <th>Submitted</th>
+                                            <th>Response</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {selectedReport.responseHistory.map((response, index) => (
+                                            <tr key={`${response.submittedAt || "response"}-${index}`}>
+                                              <td>{response.warningLevel}</td>
+                                              <td>-{response.pointsDeducted ?? response.offencePointsDeducted ?? 0}</td>
+                                              <td>{response.compliancePoints}/100</td>
+                                              <td>{formatDate(response.submittedAt)}</td>
+                                              <td>{response.notes || "Acknowledged"}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <p className="mb-0">No history entries available.</p>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
