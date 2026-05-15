@@ -14,6 +14,7 @@ import ReportNotAbandoned from "./pages/ReportNotAbandoned";
 import PrintNotice from "./pages/PrintNotice";
 import Login from "./pages/Login";
 import AcknowledgeParking from "./pages/AcknowledgeParking";
+import CheckCompliance from "./pages/CheckCompliance";
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           element={<ReportBike reportType="improperParking" />}
         />
         <Route path="/scan" element={<ScanQRCode />} />
+        <Route path="/compliance" element={<CheckCompliance />} />
         <Route path="/qr/:id" element={<QRPage />} />
         <Route
           path="/notice/:id"

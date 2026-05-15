@@ -133,10 +133,16 @@ function QRPage() {
             </p>
 
             <p className="mb-0">
-              Residents start each month with 100/100 points. First offences
+              Residents start with 100/100 points. First offences
               deduct 5 points, second offences deduct 10 points, and repeated
-              offences deduct more. If no offences are recorded, 10 recovery
-              points can be added monthly.
+              offences deduct more. 
+            </p>
+            <p>
+              If no offences are recorded, 10 recovery points can be added.
+            </p>
+            
+            <p>
+              <strong>Note:</strong> Maintain at least 80/100 compliance points to qualify for incentive such as $5 NTUC vouchers at end of the month.
             </p>
           </div>
         )}

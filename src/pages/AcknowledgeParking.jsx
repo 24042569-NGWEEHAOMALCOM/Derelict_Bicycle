@@ -23,6 +23,9 @@ const finalStatuses = [
 const monthlyStartingCompliancePoints = 100;
 const monthlyRecoveryPoints = 10;
 
+const normalizePhoneNumber = (phoneNumber) =>
+  phoneNumber.replace(/\D/g, "").replace(/^65(?=\d{8}$)/, "");
+
 const getWarningLabel = (warningNumber) => {
   if (warningNumber === 1) return "1st warning";
   if (warningNumber === 2) return "2nd warning";
@@ -70,7 +73,6 @@ function AcknowledgeParking() {
   const [message, setMessage] = useState(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [unit, setUnit] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -103,19 +105,49 @@ function AcknowledgeParking() {
   const alreadyAcknowledged = report?.status?.startsWith("Acknowledged");
 
   const getPriorComplianceState = async (phoneNumber) => {
-    const responsesForPhone = query(
-      collection(db, "reports"),
-      where("acknowledgementPhone", "==", phoneNumber)
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    const responseMap = new Map();
+    const lookupQueries = [
+      query(
+        collection(db, "reports"),
+        where("acknowledgementPhoneNormalized", "==", normalizedPhone)
+      ),
+      query(
+        collection(db, "reports"),
+        where("acknowledgementPhone", "==", phoneNumber)
+      ),
+    ];
+
+    if (normalizedPhone !== phoneNumber) {
+      lookupQueries.push(
+        query(
+          collection(db, "reports"),
+          where("acknowledgementPhone", "==", normalizedPhone)
+        )
+      );
+    }
+
+    const responseSnapshots = await Promise.all(
+      lookupQueries.map((lookupQuery) => getDocs(lookupQuery))
     );
-    const responseSnapshot = await getDocs(responsesForPhone);
+
+    responseSnapshots.forEach((responseSnapshot) => {
+      responseSnapshot.docs.forEach((docItem) => {
+        responseMap.set(docItem.id, docItem.data());
+      });
+    });
 
     const priorEntries = [];
 
-    responseSnapshot.docs.forEach((docItem) => {
-      const responseReport = docItem.data();
-
+    responseMap.forEach((responseReport) => {
       if (responseReport.responseHistory?.length > 0) {
-        priorEntries.push(...responseReport.responseHistory);
+        priorEntries.push(
+          ...responseReport.responseHistory.filter((response) => {
+            const responsePhone = response.phoneNormalized || response.phone || "";
+
+            return normalizePhoneNumber(responsePhone) === normalizedPhone;
+          })
+        );
         return;
       }
 
@@ -157,10 +189,10 @@ function AcknowledgeParking() {
 
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
-    const trimmedUnit = unit.trim();
+    const normalizedPhone = normalizePhoneNumber(trimmedPhone);
     const trimmedNotes = notes.trim();
 
-    if (!trimmedName || !trimmedPhone) {
+    if (!trimmedName || !normalizedPhone) {
       setMessage({
         type: "danger",
         text: "Please provide your name and phone number.",
@@ -197,7 +229,8 @@ function AcknowledgeParking() {
       const responseEntry = {
         name: trimmedName,
         phone: trimmedPhone,
-        unit: trimmedUnit,
+        phoneNormalized: normalizedPhone,
+        unit: "",
         notes: trimmedNotes,
         warningLevel: warningLabel,
         warningNumber,
@@ -221,7 +254,8 @@ function AcknowledgeParking() {
         status: getAcknowledgedStatus(warningNumber),
         acknowledgementName: trimmedName,
         acknowledgementPhone: trimmedPhone,
-        acknowledgementUnit: trimmedUnit,
+        acknowledgementPhoneNormalized: normalizedPhone,
+        acknowledgementUnit: "",
         acknowledgementNotes: trimmedNotes,
         acknowledgedAt: serverTimestamp(),
         warningLevel: warningLabel,

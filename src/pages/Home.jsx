@@ -28,10 +28,10 @@ function Home() {
 
                 <ul className="fs-5 text-muted">
                   <li>Report suspected abandoned bicycles</li>
-                  <li>Report bicycles causing obstruction</li>
+                  <li>Report improperly parked bicycles</li>
                   <li>Scan QR codes for bicycle notice information</li>
                   <li>Submit ownership claims or parking acknowledgements</li>
-                  <li>Report bicycles that are not abandoned</li>
+                  <li></li>
                 </ul>
               </div>
             </Link>
