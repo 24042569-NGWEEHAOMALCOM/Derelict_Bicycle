@@ -154,12 +154,6 @@ function ReportBike({ reportType = "abandoned" }) {
         config.caseType === "improperParking"
           ? "Improperly Parked Bicycle"
           : "Abandoned Bicycle",
-      compliancePoints: config.caseType === "improperParking" ? 100 : null,
-      compliancePointsDeducted: config.caseType === "improperParking" ? 0 : null,
-      offencePointsDeducted: config.caseType === "improperParking" ? 0 : null,
-      monthlyStartingCompliancePoints: config.caseType === "improperParking" ? 100 : null,
-      monthlyRecoveryPoints: config.caseType === "improperParking" ? 10 : null,
-      enforcementReviewRequired: false,
       responseHistory: config.caseType === "improperParking" ? [] : null,
     };
 
@@ -252,7 +246,7 @@ function ReportBike({ reportType = "abandoned" }) {
 
             <div className="col-md-6">
               <label className="form-label" htmlFor="location">
-                Exact Location <span className="text-danger">*</span>
+                Location <span className="text-danger">*</span>
               </label>
               <input
                 className="form-control form-control-lg"
@@ -265,7 +259,7 @@ function ReportBike({ reportType = "abandoned" }) {
                 required
               />
               <div className="form-text">
-                Describe the exact location (optional - use the map below to pinpoint)
+                Please also use the map below to pinpoint the location.
               </div>
             </div>
 

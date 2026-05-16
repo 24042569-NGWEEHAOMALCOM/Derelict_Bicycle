@@ -288,7 +288,6 @@ function Staff() {
       report.hasLock,
       report.licensePlate,
       report.warningLevel,
-      report.compliancePoints,
       report.enforcementReviewRequired ? "enforcement review" : "",
     ]
       .filter(Boolean)

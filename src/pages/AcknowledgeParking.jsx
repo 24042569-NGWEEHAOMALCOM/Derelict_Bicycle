@@ -20,9 +20,6 @@ const finalStatuses = [
   "Closed - Not Abandoned",
 ];
 
-const monthlyStartingCompliancePoints = 100;
-const monthlyRecoveryPoints = 10;
-
 const normalizePhoneNumber = (phoneNumber) =>
   phoneNumber.replace(/\D/g, "").replace(/^65(?=\d{8}$)/, "");
 
@@ -32,11 +29,6 @@ const isClosedStatus = (status) =>
 const getWarningLabel = (warningNumber) => {
   if (warningNumber === 1) return "1st warning";
   return "2nd warning";
-};
-
-const getOffenceDeduction = (offenceNumber) => {
-  if (offenceNumber === 1) return 5;
-  return 10;
 };
 
 const getAcknowledgedStatus = (offenceNumber) => {
@@ -73,21 +65,6 @@ const getWarningNoticeCopy = (warningNumber, hasPhoneNumber) => {
       "If this bicycle commits a 2nd improper parking offence, it will be locked by Town Council." +
       "You will be required to head down to the Town Council office for assistance.",
   };
-};
-
-const getRecoveryPointsSinceLastOffence = (latestSubmittedAt) => {
-  if (!latestSubmittedAt) return 0;
-
-  const latestDate = new Date(latestSubmittedAt);
-
-  if (Number.isNaN(latestDate.getTime())) return 0;
-
-  const thirtyDaysInMilliseconds = 30 * 24 * 60 * 60 * 1000;
-  const monthsWithoutOffence = Math.floor(
-    (Date.now() - latestDate.getTime()) / thirtyDaysInMilliseconds
-  );
-
-  return Math.max(monthsWithoutOffence, 0) * monthlyRecoveryPoints;
 };
 
 function AcknowledgeParking() {
@@ -141,7 +118,7 @@ function AcknowledgeParking() {
     hasPhoneNumber
   );
 
-  const getPriorComplianceState = async (phoneNumber) => {
+  const getPriorWarningState = async (phoneNumber) => {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     const responseMap = new Map();
     const lookupQueries = [
@@ -174,7 +151,7 @@ function AcknowledgeParking() {
       });
     });
 
-    const priorEntries = [];
+    const priorWarnings = [];
 
     responseMap.forEach((responseReport) => {
       if (isClosedStatus(responseReport.status)) {
@@ -182,7 +159,7 @@ function AcknowledgeParking() {
       }
 
       if (responseReport.responseHistory?.length > 0) {
-        priorEntries.push(
+        priorWarnings.push(
           ...responseReport.responseHistory.filter((response) => {
             const responsePhone = response.phoneNormalized || response.phone || "";
 
@@ -192,28 +169,11 @@ function AcknowledgeParking() {
         return;
       }
 
-      priorEntries.push({
-        compliancePoints:
-          responseReport.compliancePoints ?? monthlyStartingCompliancePoints,
-        submittedAt: responseReport.acknowledgedAt?.toDate
-          ? responseReport.acknowledgedAt.toDate().toISOString()
-          : responseReport.acknowledgedAt || "",
-      });
+      priorWarnings.push(responseReport);
     });
-
-    const sortedEntries = priorEntries.sort((firstEntry, secondEntry) => {
-      const firstDate = new Date(firstEntry.submittedAt || 0).getTime();
-      const secondDate = new Date(secondEntry.submittedAt || 0).getTime();
-
-      return firstDate - secondDate;
-    });
-    const latestEntry = sortedEntries[sortedEntries.length - 1];
 
     return {
-      priorOffenceCount: sortedEntries.length,
-      previousCompliancePoints:
-        latestEntry?.compliancePoints ?? monthlyStartingCompliancePoints,
-      latestSubmittedAt: latestEntry?.submittedAt || "",
+      priorOffenceCount: priorWarnings.length,
     };
   };
 
@@ -227,11 +187,11 @@ function AcknowledgeParking() {
       }
 
       try {
-        const priorComplianceState = await getPriorComplianceState(phone);
+        const priorWarningState = await getPriorWarningState(phone);
         const currentReportHistoryCount = report.responseHistory?.length || 0;
         const nextWarningNumber = Math.min(
           Math.max(
-            priorComplianceState.priorOffenceCount + 1,
+            priorWarningState.priorOffenceCount + 1,
             currentReportHistoryCount + 1
           ),
           2
@@ -275,31 +235,16 @@ function AcknowledgeParking() {
     setMessage(null);
 
     try {
-      const priorComplianceState = await getPriorComplianceState(trimmedPhone);
+      const priorWarningState = await getPriorWarningState(trimmedPhone);
       const currentReportHistoryCount = report.responseHistory?.length || 0;
       const warningNumber = Math.min(
         Math.max(
-          priorComplianceState.priorOffenceCount + 1,
+          priorWarningState.priorOffenceCount + 1,
           currentReportHistoryCount + 1
         ),
         2
       );
       const warningLabel = getWarningLabel(warningNumber);
-      const pointsDeducted = getOffenceDeduction(warningNumber);
-      const recoveryPointsApplied = getRecoveryPointsSinceLastOffence(
-        priorComplianceState.latestSubmittedAt
-      );
-      const recoveredPreviousCompliancePoints = Math.min(
-        priorComplianceState.previousCompliancePoints + recoveryPointsApplied,
-        monthlyStartingCompliancePoints
-      );
-      const compliancePoints = Math.max(
-        recoveredPreviousCompliancePoints - pointsDeducted,
-        0
-      );
-      const totalPointsDeducted =
-        monthlyStartingCompliancePoints - compliancePoints;
-      const enforcementReviewRequired = compliancePoints === 0;
       const responseEntry = {
         name: trimmedName,
         phone: trimmedPhone,
@@ -308,7 +253,6 @@ function AcknowledgeParking() {
         notes: trimmedNotes,
         warningLevel: warningLabel,
         warningNumber,
-        enforcementReviewRequired,
         submittedAt: new Date().toISOString(),
       };
       const responseHistory = [
@@ -326,10 +270,6 @@ function AcknowledgeParking() {
         acknowledgedAt: serverTimestamp(),
         warningLevel: warningLabel,
         warningNumber,
-        enforcementReviewRequired,
-        enforcementReviewReason: enforcementReviewRequired
-          ? "Compliance score reached 0 due to repeated non-compliance."
-          : "",
         responseHistory,
         updatedAt: serverTimestamp(),
       });
