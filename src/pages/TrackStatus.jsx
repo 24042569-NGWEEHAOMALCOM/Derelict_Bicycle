@@ -3,14 +3,30 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { db } from "../firebase/firebase";
 
+const firstWarningStatus = "Acknowledged - 1st Warning";
+const secondWarningStatus = "Acknowledged - 2nd Warning";
+const lockedSecondWarningStatus =
+  "Acknowledged - 2nd Warning (Bicycle has been locked)";
+
+const getDisplayStatus = (status) => {
+  if (status === firstWarningStatus || status === secondWarningStatus) {
+    return status;
+  }
+
+  if (status === lockedSecondWarningStatus || status?.startsWith("Acknowledged -")) {
+    return secondWarningStatus;
+  }
+
+  return status;
+};
+
 const getBadgeClass = (status) => {
   if (status === "Reported") return "bg-secondary";
   if (status === "Verified") return "bg-info";
   if (status === "Verified: Improperly Parked") return "bg-info";
   if (status === "Tagged") return "bg-warning text-dark";
-  if (status === "Acknowledged - 1st Warning") return "bg-warning text-dark";
-  if (status === "Acknowledged - 2nd Warning") return "bg-danger";
-  if (status === "Acknowledged - Repeated Offence") return "bg-dark";
+  if (getDisplayStatus(status) === firstWarningStatus) return "bg-warning text-dark";
+  if (getDisplayStatus(status) === secondWarningStatus) return "bg-danger";
   if (status === "Removed") return "bg-danger";
   if (status === "Closed") return "bg-success";
   if (status === "Closed - Claimed") return "bg-success";
@@ -142,7 +158,7 @@ function TrackStatus() {
 
               <div>
                 <span className={`badge fs-6 ${getBadgeClass(report.status)}`}>
-                  {report.status || "Unknown"}
+                  {getDisplayStatus(report.status) || "Unknown"}
                 </span>
               </div>
             </div>
@@ -210,24 +226,10 @@ function TrackStatus() {
                 </div>
               </div>
 
-              {report.caseType === "improperParking" && (
-                <div className="col-md-6">
-                  <div className="bg-white rounded-3 border p-3 h-100">
-                    <p className="text-muted small text-uppercase mb-1">
-                      Compliance Points
-                    </p>
-                    <p className="mb-0">
-                      {report.compliancePoints ?? 100}/100
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {report.enforcementReviewRequired && (
                 <div className="col-12">
                   <div className="alert alert-danger mb-0">
-                    This case has been flagged for further review and possible
-                    Town Council enforcement action.
+                    This case has been flagged for further Town Council review.
                   </div>
                 </div>
               )}

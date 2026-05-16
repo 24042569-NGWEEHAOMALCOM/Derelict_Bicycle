@@ -11,8 +11,19 @@ const finalStatuses = [
   "Closed - Not Abandoned",
   "Acknowledged - 1st Warning",
   "Acknowledged - 2nd Warning",
-  "Acknowledged - Repeated Offence",
 ];
+
+const firstWarningStatus = "Acknowledged - 1st Warning";
+const secondWarningStatus = "Acknowledged - 2nd Warning";
+
+
+const getDisplayStatus = (status) => {
+  if (status === firstWarningStatus || status === secondWarningStatus) {
+    return status;
+  }
+
+  return status;
+};
 
 const formatDate = (dateValue) => {
   if (!dateValue) return "Not available";
@@ -85,8 +96,15 @@ function QRPage() {
 
   const hasValidExpiryDate = expiryDate && !Number.isNaN(expiryDate.getTime());
   const isExpired = hasValidExpiryDate && today > expiryDate;
-  const isFinalStatus = finalStatuses.includes(report.status);
   const isImproperParking = report.caseType === "improperParking";
+  const isAcknowledgedNotice = report.status?.startsWith("Acknowledged -");
+  const displayStatus = getDisplayStatus(report.status);
+  const isSecondWarningNotice =
+    isImproperParking &&
+    (displayStatus === secondWarningStatus || report.warningNumber >= 2);
+  const isFinalStatus =
+    finalStatuses.includes(report.status) ||
+    (isImproperParking && isAcknowledgedNotice);
 
   return (
     <div className="container py-5">
@@ -101,8 +119,15 @@ function QRPage() {
 
         {isImproperParking && (
           <div className="alert alert-warning">
-            If this bicycle belongs to you, submit a response to acknowledge
-            that a warning has been given.
+            <p className="fw-bold mb-2">
+              {isSecondWarningNotice ? "Warning Notice" : "Improper Parking Warning"}
+            </p>
+
+            <p className="mb-0">
+              {isSecondWarningNotice
+                ? "2nd warning for improper parking. It has been locked by Town Council. Please head down to the Town Council office for assistance."
+                : "This bicycle has been reported for improper parking."}
+            </p>
           </div>
         )}
 
@@ -119,40 +144,8 @@ function QRPage() {
         </p>
 
         <p className="fs-5">
-          <strong>Status:</strong> {report.status}
+          <strong>Status:</strong> {displayStatus}
         </p>
-
-        <p className="fs-5">
-          <strong>Compliance Points:</strong> {report.compliancePoints ?? 100}/100
-        </p>
-
-        {isImproperParking && (
-          <div className="border rounded-3 p-3 mb-4 bg-light">
-            <p className="fw-bold mb-2">
-              Monthly Compliance Score
-            </p>
-
-            <p className="mb-0">
-              Residents start with 100/100 points. First offences
-              deduct 5 points, second offences deduct 10 points, and repeated
-              offences deduct more. 
-            </p>
-            <p>
-              If no offences are recorded, 10 recovery points can be added.
-            </p>
-            
-            <p>
-              <strong>Note:</strong> Maintain at least 80/100 compliance points to qualify for incentive such as $5 NTUC vouchers at end of the month.
-            </p>
-          </div>
-        )}
-
-        {isImproperParking && report.enforcementReviewRequired && (
-          <div className="alert alert-danger">
-            This compliance score has reached 0 and has been flagged for Town
-            Council review and possible enforcement action.
-          </div>
-        )}
 
         {hasValidExpiryDate && (
           <p className="fs-5">
@@ -165,7 +158,9 @@ function QRPage() {
 
           {isFinalStatus ? (
             <div className="alert alert-success">
-              {isImproperParking && report.status?.startsWith("Acknowledged")
+              {isSecondWarningNotice
+                ? "This 2nd warning has been recorded. Please visit the Town Council office for assistance."
+                : isImproperParking && report.status?.startsWith("Acknowledged")
                 ? "Your acknowledgement has been recorded. No further action is required for this notice."
                 : "This case is already closed. No further resident action is required."}
             </div>
@@ -177,9 +172,9 @@ function QRPage() {
             <div className="alert alert-danger">
               Notice period has expired. Bicycle may be removed by Town Council.
             </div>
-          ) : (
+          ) : isImproperParking ? null : (
             <div className="alert alert-warning">
-              Bicycle is currently under notice period.
+              This bicycle is still within the notice period.
             </div>
           )}
 
@@ -202,7 +197,7 @@ function QRPage() {
         {!isFinalStatus && isImproperParking && (
           <div className="d-flex flex-wrap gap-3 mt-4">
             <a href={`/acknowledge/${report.id}`} className="btn btn-warning">
-              Submit Acknowledgement
+              Next
             </a>
           </div>
         )}

@@ -148,18 +148,6 @@ function PrintNotice() {
           </div>
 
           <div>
-            <p className="notice-label">Compliance Points</p>
-            <p className="notice-value">{report.compliancePoints ?? 100}/100</p>
-          </div>
-
-          {isImproperParking && (
-            <div>
-              <p className="notice-label">Monthly Recovery</p>
-              <p className="notice-value">+{report.monthlyRecoveryPoints ?? 10} if no offences</p>
-            </div>
-          )}
-
-          <div>
             <p className="notice-label">Tagged Date</p>
             <p className="notice-value">{formatDate(report.tagDate)}</p>
           </div>
@@ -190,7 +178,7 @@ function PrintNotice() {
 
             <p className="notice-body">
               {isImproperParking
-                ? "Use this QR code to acknowledge the improper parking warning and view your compliance points."
+                ? "Use this QR code to acknowledge the improper parking warning."
                 : "Use this QR code to claim the bicycle or report that it is not abandoned."}
             </p>
 
@@ -202,7 +190,7 @@ function PrintNotice() {
 
         <div className="notice-footer">
           {isImproperParking
-            ? "Residents start each month at 100/100. Deductions are -5 for the 1st offence, -10 for the 2nd offence, and larger deductions for repeated offences. A score of 0 will be flagged for Town Council review."
+            ? "This notice is a 1st warning for improper parking. If the bicycle commits a 2nd improper parking offence, it will be locked by Town Council and the resident must visit the Town Council office for assistance."
             : "Bicycle may be removed by Town Council after the notice period if no valid response is received."}
         </div>
       </div>

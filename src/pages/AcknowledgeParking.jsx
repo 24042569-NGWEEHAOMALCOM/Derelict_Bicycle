@@ -26,26 +26,53 @@ const monthlyRecoveryPoints = 10;
 const normalizePhoneNumber = (phoneNumber) =>
   phoneNumber.replace(/\D/g, "").replace(/^65(?=\d{8}$)/, "");
 
+const isClosedStatus = (status) =>
+  status === "Closed" || status?.startsWith("Closed -");
+
 const getWarningLabel = (warningNumber) => {
   if (warningNumber === 1) return "1st warning";
-  if (warningNumber === 2) return "2nd warning";
-  if (warningNumber === 3) return "3rd warning";
-
-  return `${warningNumber}th warning`;
+  return "2nd warning";
 };
 
 const getOffenceDeduction = (offenceNumber) => {
   if (offenceNumber === 1) return 5;
-  if (offenceNumber === 2) return 10;
-
-  return Math.min(15 + (offenceNumber - 3) * 5, 30);
+  return 10;
 };
 
 const getAcknowledgedStatus = (offenceNumber) => {
   if (offenceNumber === 1) return "Acknowledged - 1st Warning";
-  if (offenceNumber === 2) return "Acknowledged - 2nd Warning";
+  return "Acknowledged - 2nd Warning";
+};
 
-  return "Acknowledged - Repeated Offence";
+const getWarningNoticeCopy = (warningNumber, hasPhoneNumber) => {
+  if (warningNumber >= 2) {
+    return {
+      title: "2nd Warning for Improper Parking",
+      body:
+        "This bicycle has been locked by the Town Council due to repeated improper parking offences.",
+      instruction:
+        "Please proceed to the Town Council office for verification and assistance.",
+    };
+  }
+
+  if (!hasPhoneNumber) {
+    return {
+      title: "Improper Parking Warning",
+      body:
+        "Enter your phone number below to verify whether this notice is a 1st or 2nd warning." ,
+      instruction:
+        "If this is a 2nd warning, the bicycle has been locked by Town Council."
+    };
+  }
+
+  return {
+    title: "1st warning for improper parking",
+    body:
+      "Please move your bicycle away from this location and park it properly.",
+    instruction:
+      "If this bicycle commits a 2nd improper parking offence, it will be locked by Town Council." +
+      "You will be required to head down to the Town Council office for assistance.",
+  };
 };
 
 const getRecoveryPointsSinceLastOffence = (latestSubmittedAt) => {
@@ -74,6 +101,7 @@ function AcknowledgeParking() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [previewWarningNumber, setPreviewWarningNumber] = useState(1);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -103,6 +131,15 @@ function AcknowledgeParking() {
   const isImproperParking = report?.caseType === "improperParking";
   const isFinalStatus = finalStatuses.includes(report?.status);
   const alreadyAcknowledged = report?.status?.startsWith("Acknowledged");
+  const currentWarningNumber = Math.max(
+    previewWarningNumber,
+    Number(report?.warningNumber) || 1
+  );
+  const hasPhoneNumber = Boolean(normalizePhoneNumber(phone));
+  const warningNoticeCopy = getWarningNoticeCopy(
+    currentWarningNumber,
+    hasPhoneNumber
+  );
 
   const getPriorComplianceState = async (phoneNumber) => {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -140,6 +177,10 @@ function AcknowledgeParking() {
     const priorEntries = [];
 
     responseMap.forEach((responseReport) => {
+      if (isClosedStatus(responseReport.status)) {
+        return;
+      }
+
       if (responseReport.responseHistory?.length > 0) {
         priorEntries.push(
           ...responseReport.responseHistory.filter((response) => {
@@ -176,6 +217,36 @@ function AcknowledgeParking() {
     };
   };
 
+  useEffect(() => {
+    const updatePreviewWarning = async () => {
+      const normalizedPhone = normalizePhoneNumber(phone);
+
+      if (!report || !isImproperParking || !normalizedPhone) {
+        setPreviewWarningNumber(1);
+        return;
+      }
+
+      try {
+        const priorComplianceState = await getPriorComplianceState(phone);
+        const currentReportHistoryCount = report.responseHistory?.length || 0;
+        const nextWarningNumber = Math.min(
+          Math.max(
+            priorComplianceState.priorOffenceCount + 1,
+            currentReportHistoryCount + 1
+          ),
+          2
+        );
+
+        setPreviewWarningNumber(nextWarningNumber);
+      } catch (error) {
+        console.error("Error checking warning preview:", error);
+        setPreviewWarningNumber(1);
+      }
+    };
+
+    updatePreviewWarning();
+  }, [phone, report, isImproperParking]);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -206,9 +277,12 @@ function AcknowledgeParking() {
     try {
       const priorComplianceState = await getPriorComplianceState(trimmedPhone);
       const currentReportHistoryCount = report.responseHistory?.length || 0;
-      const warningNumber = Math.max(
-        priorComplianceState.priorOffenceCount + 1,
-        currentReportHistoryCount + 1
+      const warningNumber = Math.min(
+        Math.max(
+          priorComplianceState.priorOffenceCount + 1,
+          currentReportHistoryCount + 1
+        ),
+        2
       );
       const warningLabel = getWarningLabel(warningNumber);
       const pointsDeducted = getOffenceDeduction(warningNumber);
@@ -234,14 +308,6 @@ function AcknowledgeParking() {
         notes: trimmedNotes,
         warningLevel: warningLabel,
         warningNumber,
-        previousCompliancePoints: priorComplianceState.previousCompliancePoints,
-        recoveryPointsApplied,
-        recoveredPreviousCompliancePoints,
-        compliancePoints,
-        pointsDeducted,
-        totalPointsDeducted,
-        monthlyStartingCompliancePoints,
-        monthlyRecoveryPoints,
         enforcementReviewRequired,
         submittedAt: new Date().toISOString(),
       };
@@ -260,12 +326,6 @@ function AcknowledgeParking() {
         acknowledgedAt: serverTimestamp(),
         warningLevel: warningLabel,
         warningNumber,
-        offencePointsDeducted: pointsDeducted,
-        compliancePoints,
-        compliancePointsDeducted: totalPointsDeducted,
-        monthlyStartingCompliancePoints,
-        monthlyRecoveryPoints,
-        recoveryPointsApplied,
         enforcementReviewRequired,
         enforcementReviewReason: enforcementReviewRequired
           ? "Compliance score reached 0 due to repeated non-compliance."
@@ -292,11 +352,6 @@ function AcknowledgeParking() {
         <h1 className="fw-bold mb-4">
           Acknowledge Improper Parking Notice
         </h1>
-
-        <p className="text-muted fs-5">
-          Submit this acknowledgement if the bicycle belongs to you. A warning
-          and compliance points record will be saved automatically.
-        </p>
 
         {loading ? (
           <div className="alert alert-info">Loading notice...</div>
@@ -336,18 +391,18 @@ function AcknowledgeParking() {
               </div>
 
               <div className="col-12">
-                <div className="border rounded-3 p-3">
+                <div className="border rounded-3 p-3 alert alert-warning mb-0">
                   <p className="text-muted small text-uppercase mb-1">
-                    Current Compliance Points
+                    Warning Notice
                   </p>
                   <p className="fw-semibold mb-2">
-                    {report.compliancePoints ?? monthlyStartingCompliancePoints}/100
+                    {warningNoticeCopy.title}
                   </p>
                   <p className="mb-0">
-                    Residents start with 100/100 compliance points.
-                    First offences deduct 5 points, second offences deduct 10
-                    points, and repeated offences deduct more. Residents can
-                    recover 10 points monthly when no offences are recorded.
+                    {warningNoticeCopy.body}
+                  </p>
+                  <p className="mb-0">
+                    {warningNoticeCopy.instruction}
                   </p>
                 </div>
               </div>
@@ -395,7 +450,7 @@ function AcknowledgeParking() {
                     className="form-control"
                     id="acknowledgementNotes"
                     rows="4"
-                    placeholder="Example: I acknowledge the warning and will move the bicycle away from the obstruction."
+                    placeholder="Example: I acknowledge the warning."
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
                   />
@@ -407,7 +462,7 @@ function AcknowledgeParking() {
                 type="submit"
                 disabled={submitting}
               >
-                {submitting ? "Submitting..." : "Submit Acknowledgement"}
+                {submitting ? "Submitting..." : "Submit"}
               </button>
             </form>
           </>

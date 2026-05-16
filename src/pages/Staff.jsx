@@ -14,7 +14,6 @@ const statusOptions = [
   "Tagged",
   "Acknowledged - 1st Warning",
   "Acknowledged - 2nd Warning",
-  "Acknowledged - Repeated Offence",
   "Removed",
   "Closed",
   "Closed - Claimed",
@@ -24,7 +23,20 @@ const statusOptions = [
 const verifiedImproperParkingStatus = "Verified: Improperly Parked";
 const firstWarningStatus = "Acknowledged - 1st Warning";
 const secondWarningStatus = "Acknowledged - 2nd Warning";
-const repeatedOffenceStatus = "Acknowledged - Repeated Offence";
+const lockedSecondWarningStatus =
+  "Acknowledged - 2nd Warning (Bicycle has been locked)";
+
+const getDisplayStatus = (status) => {
+  if (status === firstWarningStatus || status === secondWarningStatus) {
+    return status;
+  }
+
+  if (status === lockedSecondWarningStatus || status?.startsWith("Acknowledged -")) {
+    return secondWarningStatus;
+  }
+
+  return status;
+};
 
 const statusActions = {
   Verified: [
@@ -87,7 +99,7 @@ const statusActions = {
       className: "btn btn-success btn-sm",
     },
   ],
-  [repeatedOffenceStatus]: [
+  [lockedSecondWarningStatus]: [
     {
       label: "Close Case",
       status: "Closed",
@@ -260,8 +272,9 @@ function Staff() {
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
   const filteredReports = reports.filter((report) => {
+    const displayStatus = getDisplayStatus(report.status);
     const matchesStatus =
-      statusFilter === "All" || report.status === statusFilter;
+      statusFilter === "All" || displayStatus === statusFilter;
 
     const searchableText = [
       report.id,
@@ -269,6 +282,7 @@ function Staff() {
       report.location,
       report.description,
       report.status,
+      displayStatus,
       getReportTypeLabel(report),
       report.condition,
       report.hasLock,
@@ -304,7 +318,7 @@ function Staff() {
     .filter((status) => status !== "All")
     .map((status) => ({
       status,
-      count: reports.filter((report) => report.status === status).length,
+      count: reports.filter((report) => getDisplayStatus(report.status) === status).length,
     }));
   const topBlocks = getTopCounts(reports, "blockNumber");
   const topLocations = getTopCounts(reports, "location");
@@ -345,11 +359,8 @@ function Staff() {
     if (status === firstWarningStatus)
       return "bg-warning text-dark";
 
-    if (status === secondWarningStatus)
+    if (getDisplayStatus(status) === secondWarningStatus)
       return "bg-danger";
-
-    if (status === repeatedOffenceStatus)
-      return "bg-dark";
 
     if (status === "Removed")
       return "bg-danger";
@@ -681,7 +692,7 @@ function Staff() {
                       </div>
 
                       <span className={`badge ${getBadgeClass(report.status)}`}>
-                        {report.status || "Unknown"}
+                        {getDisplayStatus(report.status) || "Unknown"}
                       </span>
                     </div>
                   </button>
@@ -720,7 +731,7 @@ function Staff() {
                     </div>
 
                     <span className={`badge fs-6 ${getBadgeClass(selectedReport.status)}`}>
-                      {selectedReport.status || "Unknown"}
+                      {getDisplayStatus(selectedReport.status) || "Unknown"}
                     </span>
                   </div>
 
@@ -943,9 +954,8 @@ function Staff() {
 
                               {selectedReport.enforcementReviewRequired && (
                                 <div className="alert alert-danger">
-                                  Compliance score has reached 0. This case is
-                                  automatically flagged for further review and
-                                  possible Town Council enforcement action.
+                                  This case is flagged for further Town Council
+                                  review and possible enforcement action.
                                 </div>
                               )}
 
@@ -970,46 +980,6 @@ function Staff() {
                                   </p>
                                 </div>
 
-                                <div className="col-md-6">
-                                  <p className="text-muted small text-uppercase mb-1">
-                                    Compliance Points
-                                  </p>
-
-                                  <p className="fw-semibold mb-0">
-                                    {selectedReport.compliancePoints ?? 100}/100
-                                  </p>
-                                </div>
-
-                                <div className="col-md-6">
-                                  <p className="text-muted small text-uppercase mb-1">
-                                    Total Points Deducted
-                                  </p>
-
-                                  <p className="fw-semibold mb-0">
-                                    {selectedReport.compliancePointsDeducted ?? 0}
-                                  </p>
-                                </div>
-
-                                <div className="col-md-6">
-                                  <p className="text-muted small text-uppercase mb-1">
-                                    Latest Offence Deduction
-                                  </p>
-
-                                  <p className="fw-semibold mb-0">
-                                    {selectedReport.offencePointsDeducted ?? selectedReport.compliancePointsDeducted ?? 0}
-                                  </p>
-                                </div>
-
-                                <div className="col-12">
-                                  <p className="text-muted small text-uppercase mb-1">
-                                    Monthly Recovery Rule
-                                  </p>
-
-                                  <p className="mb-0">
-                                    +{selectedReport.monthlyRecoveryPoints ?? 10} points may be recovered monthly when no offences are recorded.
-                                  </p>
-                                </div>
-
                                 <div className="col-12">
                                   <p className="text-muted small text-uppercase mb-1">
                                     Response History
@@ -1021,8 +991,6 @@ function Staff() {
                                         <thead>
                                           <tr>
                                             <th>Warning</th>
-                                            <th>Deduction</th>
-                                            <th>Points</th>
                                             <th>Submitted</th>
                                             <th>Response</th>
                                           </tr>
@@ -1031,8 +999,6 @@ function Staff() {
                                           {selectedReport.responseHistory.map((response, index) => (
                                             <tr key={`${response.submittedAt || "response"}-${index}`}>
                                               <td>{response.warningLevel}</td>
-                                              <td>-{response.pointsDeducted ?? response.offencePointsDeducted ?? 0}</td>
-                                              <td>{response.compliancePoints}/100</td>
                                               <td>{formatDate(response.submittedAt)}</td>
                                               <td>{response.notes || "Acknowledged"}</td>
                                             </tr>

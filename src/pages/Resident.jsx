@@ -83,26 +83,6 @@ function Resident() {
           </Link>
         </div>
 
-        <div className="col-md-4">
-          <Link to="/compliance" className="text-decoration-none">
-            <div className="portal-card h-100">
-
-              <div className="icon-box icon-green mb-4">
-                Points
-              </div>
-
-              <h3 className="fw-bold">
-                Check Compliance Points
-              </h3>
-
-              <p className="text-muted fs-5">
-                Check whether you are qualified for the monthly NTUC voucher incentive.
-              </p>
-
-            </div>
-          </Link>
-        </div>
-
       </div>
     </div>
   );
