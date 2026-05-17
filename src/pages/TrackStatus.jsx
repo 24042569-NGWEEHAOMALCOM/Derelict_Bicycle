@@ -160,8 +160,29 @@ function TrackStatus() {
                 <span className={`badge fs-6 ${getBadgeClass(report.status)}`}>
                   {getDisplayStatus(report.status) || "Unknown"}
                 </span>
+                <p className="text-muted mb-0 mt-2">
+                  Points Earned: <span className="fw-semibold">{report.pointsEarned || 0}</span>
+                </p>
               </div>
             </div>
+
+            {(report.reporterName || report.reporterEmail) && (
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <div className="bg-white rounded-3 border p-3 h-100">
+                    <p className="text-muted small text-uppercase mb-1">
+                      Reporter
+                    </p>
+                    <p className="fs-5 fw-semibold mb-1">
+                      {report.reporterName || "Unknown"}
+                    </p>
+                    <p className="mb-0 text-muted">
+                      {report.reporterEmail || "No email provided"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="row g-3">
               <div className="col-md-6">
