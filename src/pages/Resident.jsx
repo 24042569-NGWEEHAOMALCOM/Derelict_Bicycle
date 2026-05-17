@@ -1,6 +1,74 @@
+import { useState } from "react";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../firebase/firebase";
 import { Link } from "react-router-dom";
 
 function Resident() {
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupResult, setLookupResult] = useState(null);
+  const [lookupMessage, setLookupMessage] = useState(null);
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
+
+  const handleLookup = async (e) => {
+    e.preventDefault();
+
+    const normalizedEmail = lookupEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setLookupMessage({
+        type: "danger",
+        text: "Enter your email to look up your contribution points.",
+      });
+      setLookupResult(null);
+      return;
+    }
+
+    setLookupMessage(null);
+    setLookupResult(null);
+    setIsLookupLoading(true);
+
+    try {
+      const reportsQuery = query(
+        collection(db, "reports"),
+        where("reporterEmail", "==", normalizedEmail)
+      );
+
+      const querySnapshot = await getDocs(reportsQuery);
+
+      if (querySnapshot.empty) {
+        setLookupMessage({
+          type: "warning",
+          text: "No reports found for that email.",
+        });
+        return;
+      }
+
+      const residentReports = querySnapshot.docs.map((docItem) => ({
+        id: docItem.id,
+        ...docItem.data(),
+      }));
+
+      const totalPoints = residentReports.reduce(
+        (sum, report) => sum + (report.pointsEarned || 0),
+        0
+      );
+
+      setLookupResult({
+        reports: residentReports,
+        totalPoints,
+        voucherCount: Math.floor(totalPoints / 100),
+      });
+    } catch (error) {
+      console.error("Resident points lookup failed:", error);
+      setLookupMessage({
+        type: "danger",
+        text: "Unable to look up points right now. Please try again later.",
+      });
+    } finally {
+      setIsLookupLoading(false);
+    }
+  };
+
   return (
     <div className="container py-5">
 
@@ -83,6 +151,88 @@ function Resident() {
           </Link>
         </div>
 
+      </div>
+
+      <div className="portal-card mt-5">
+        <div className="mb-4">
+          <h2 className="fw-bold h3">Points Lookup</h2>
+          <p className="text-muted fs-5 mb-0">
+            Verified reports earn 10 points and 100 points earns one $5 NTUC voucher.
+          </p>
+        </div>
+
+        <form onSubmit={handleLookup} className="row g-3 align-items-end">
+          <div className="col-md-8">
+            <label className="form-label" htmlFor="lookupEmail">
+              Your Email
+            </label>
+            <input
+              className="form-control form-control-lg"
+              id="lookupEmail"
+              type="email"
+              placeholder="example@gmail.com"
+              value={lookupEmail}
+              onChange={(e) => setLookupEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="col-md-4">
+            <button
+              className="btn btn-primary btn-lg w-100"
+              type="submit"
+              disabled={isLookupLoading}
+            >
+              {isLookupLoading ? "Checking..." : "Check Points"}
+            </button>
+          </div>
+        </form>
+
+        {lookupMessage && (
+          <div className={`alert alert-${lookupMessage.type} mt-4`} role="alert">
+            {lookupMessage.text}
+          </div>
+        )}
+
+        {lookupResult && (
+          <div className="mt-4">
+            <div className="row g-3 mb-4">
+              <div className="col-md-6">
+                <div className="border rounded-3 p-3 h-100">
+                  <p className="text-uppercase text-muted small mb-2">Total Points</p>
+                  <p className="display-6 fw-bold mb-0">{lookupResult.totalPoints}</p>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="border rounded-3 p-3 h-100">
+                  <p className="text-uppercase text-muted small mb-2">Eligible $5 Vouchers</p>
+                  <p className="display-6 fw-bold mb-0">{lookupResult.voucherCount}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Report ID</th>
+                    <th>Status</th>
+                    <th className="text-end">Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lookupResult.reports.map((report) => (
+                    <tr key={report.id}>
+                      <td>{report.id}</td>
+                      <td>{report.status}</td>
+                      <td className="text-end fw-bold">{report.pointsEarned || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

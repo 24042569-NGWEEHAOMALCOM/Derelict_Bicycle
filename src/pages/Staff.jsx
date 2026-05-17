@@ -171,6 +171,34 @@ const getTopCounts = (items, fieldName, limit = 5) => {
     .slice(0, limit);
 };
 
+const getResidentPoints = (items) => {
+  const residentMap = items.reduce((current, report) => {
+    const email = report.reporterEmail?.trim().toLowerCase();
+    const name = report.reporterName?.trim();
+
+    if (!email) return current;
+
+    const existing = current[email] || {
+      reporterEmail: email,
+      reporterName: name || email,
+      points: 0,
+      reports: 0,
+    };
+
+    return {
+      ...current,
+      [email]: {
+        ...existing,
+        reporterName: existing.reporterName || name || email,
+        points: existing.points + (report.pointsEarned || 0),
+        reports: existing.reports + 1,
+      },
+    };
+  }, {});
+
+  return Object.values(residentMap).sort((first, second) => second.points - first.points);
+};
+
 function Staff() {
   const [reports, setReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -211,6 +239,19 @@ function Staff() {
       status: newStatus,
       updatedAt: new Date(),
     };
+
+    if (
+      newStatus === "Verified" ||
+      newStatus === verifiedImproperParkingStatus
+    ) {
+      if (!currentReport.pointsEarned) {
+        updateData.pointsEarned = 10;
+      }
+    }
+
+    if (newStatus === "Closed" && currentReport.status === "Reported") {
+      updateData.pointsEarned = 0;
+    }
 
     if (newStatus === "Tagged") {
 
@@ -320,6 +361,8 @@ function Staff() {
       count: reports.filter((report) => getDisplayStatus(report.status) === status).length,
     }));
   const topBlocks = getTopCounts(reports, "blockNumber");
+  const residentPointSummary = getResidentPoints(reports);
+  const topResidentContributors = residentPointSummary.slice(0, 5);
   const topLocations = getTopCounts(reports, "location");
 
   const clearFilters = () => {
@@ -454,6 +497,65 @@ function Staff() {
           </div>
         </div>
 
+        <div className="col-md-3">
+          <div className="portal-card text-center">
+            <h2 className="fw-bold">
+              {
+                reports.filter(
+                  (r) => r.status === "Closed"
+                ).length
+              }
+            </h2>
+
+            <p className="text-muted m-0">
+              Closed
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <div className="portal-card mb-5" style={{ minHeight: "auto" }}>
+        <div className="mb-4">
+          <h2 className="fw-bold h3">
+            Top Resident Contributors
+          </h2>
+
+          <p className="text-muted fs-5 mb-0">
+            Points are tracked per reporter email. Every verified report earns 10 points and 100 points earns one $5 NTUC voucher.
+          </p>
+        </div>
+
+        {topResidentContributors.length === 0 ? (
+          <p className="text-muted mb-0">
+            No resident contribution data is available yet.
+          </p>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Resident</th>
+                  <th>Email</th>
+                  <th className="text-end">Points</th>
+                  <th className="text-end">Vouchers</th>
+                  <th className="text-end">Reports</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topResidentContributors.map((resident) => (
+                  <tr key={resident.reporterEmail}>
+                    <td>{resident.reporterName || resident.reporterEmail}</td>
+                    <td>{resident.reporterEmail}</td>
+                    <td className="text-end fw-bold">{resident.points}</td>
+                    <td className="text-end fw-bold">{Math.floor(resident.points / 100)}</td>
+                    <td className="text-end fw-bold">{resident.reports}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="portal-card mb-5" style={{ minHeight: "auto" }}>

@@ -33,6 +33,8 @@ const reportConfigs = {
 };
 
 const initialForm = {
+  reporterName: "",
+  reporterEmail: "",
   blockNumber: "",
   location: "",
   description: "",
@@ -141,6 +143,8 @@ function ReportBike({ reportType = "abandoned" }) {
     setMessage(null);
 
     const report = {
+      reporterName: formData.reporterName.trim(),
+      reporterEmail: formData.reporterEmail.trim().toLowerCase(),
       blockNumber: formData.blockNumber.trim(),
       location: formData.location.trim(),
       description: formData.description.trim(),
@@ -157,7 +161,13 @@ function ReportBike({ reportType = "abandoned" }) {
       responseHistory: config.caseType === "improperParking" ? [] : null,
     };
 
-    if (!report.blockNumber || !report.location || !report.description) {
+    if (
+      !report.reporterName ||
+      !report.reporterEmail ||
+      !report.blockNumber ||
+      !report.location ||
+      !report.description
+    ) {
       setMessage({
         type: "danger",
         text: "Please complete all required fields before submitting your report.",
@@ -177,6 +187,7 @@ function ReportBike({ reportType = "abandoned" }) {
         ...report,
         imageUrl,
         status: "Reported",
+        pointsEarned: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -261,6 +272,38 @@ function ReportBike({ reportType = "abandoned" }) {
               <div className="form-text">
                 Please also use the map below to pinpoint the location.
               </div>
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label" htmlFor="reporterName">
+                Your Name <span className="text-danger">*</span>
+              </label>
+              <input
+                className="form-control form-control-lg"
+                id="reporterName"
+                name="reporterName"
+                type="text"
+                placeholder="Example: John Tan"
+                value={formData.reporterName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label" htmlFor="reporterEmail">
+                Your Email <span className="text-danger">*</span>
+              </label>
+              <input
+                className="form-control form-control-lg"
+                id="reporterEmail"
+                name="reporterEmail"
+                type="email"
+                placeholder="Example: john.tan@example.com"
+                value={formData.reporterEmail}
+                onChange={handleChange}
+                required
+              />
             </div>
 
             {/* GPS Map Display - Interactive */}
