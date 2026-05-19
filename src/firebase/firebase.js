@@ -4,14 +4,24 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyApgYWAJEI9yX0gm-T6n0vWfg4q0q_axLE",
-  authDomain: "derelict-bicycle-system.firebaseapp.com",
-  projectId: "derelict-bicycle-system",
-  storageBucket: "derelict-bicycle-system.firebasestorage.app",
-  messagingSenderId: "1023449299442",
-  appId: "1:1023449299442:web:8ed9531d887ca01d9e936b",
-  measurementId: "G-Y6VHE7WTL1"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
+
+const missingFirebaseConfig = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingFirebaseConfig.length > 0) {
+  throw new Error(
+    `Missing Firebase environment variables: ${missingFirebaseConfig.join(", ")}`
+  );
+}
 
 const app = initializeApp(firebaseConfig);
 

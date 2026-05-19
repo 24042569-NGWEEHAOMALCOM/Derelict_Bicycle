@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  browserSessionPersistence,
+  setPersistence,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { auth } from "../firebase/firebase";
 
 function Login() {
@@ -13,6 +17,7 @@ function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const redirectPath = location.state?.from?.pathname || "/staff";
+  const sessionExpired = location.state?.sessionExpired;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,6 +25,7 @@ function Login() {
     setIsSubmitting(true);
 
     try {
+      await setPersistence(auth, browserSessionPersistence);
       await signInWithEmailAndPassword(
         auth,
         email.trim(),
@@ -62,6 +68,12 @@ function Login() {
         {message && (
           <div className={`alert alert-${message.type}`} role="alert">
             {message.text}
+          </div>
+        )}
+
+        {sessionExpired && !message && (
+          <div className="alert alert-warning" role="alert">
+            Your session expired due to inactivity. Please sign in again.
           </div>
         )}
 
