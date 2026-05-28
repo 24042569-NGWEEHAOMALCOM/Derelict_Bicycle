@@ -150,6 +150,9 @@ const getStatusActions = (report) => {
   return statusActions[report.status] || [];
 };
 
+const isClosedStatus = (status) =>
+  status === "Closed" || status?.startsWith("Closed -");
+
 const getTopCounts = (items, fieldName, limit = 5) => {
   const countMap = items.reduce((currentCounts, item) => {
     const key = item[fieldName]?.trim();
@@ -360,6 +363,33 @@ function Staff() {
       status,
       count: reports.filter((report) => getDisplayStatus(report.status) === status).length,
     }));
+  const dashboardMetrics = [
+    {
+      label: "Total Reports",
+      count: reports.length,
+    },
+    {
+      label: "Active Cases",
+      count: reports.filter((report) => !isClosedStatus(report.status)).length,
+    },
+    {
+      label: "Resident Responses",
+      count: reports.filter(
+        (report) =>
+          report.claimName ||
+          report.claimPhone ||
+          report.claimProof ||
+          report.notAbandonedReason ||
+          report.acknowledgementName ||
+          report.acknowledgementPhone ||
+          report.responseHistory?.length > 0
+      ).length,
+    },
+    {
+      label: "Closed Cases",
+      count: reports.filter((report) => isClosedStatus(report.status)).length,
+    },
+  ];
   const topBlocks = getTopCounts(reports, "blockNumber");
   const residentPointSummary = getResidentPoints(reports);
   const topResidentContributors = residentPointSummary.slice(0, 5);
@@ -437,81 +467,19 @@ function Staff() {
 
       <div className="row g-4 mb-5">
 
-        <div className="col-md-3">
-          <div className="portal-card text-center">
-            <h2 className="fw-bold">
-              {reports.length}
-            </h2>
+        {dashboardMetrics.map((metric) => (
+          <div className="col-md-3" key={metric.label}>
+            <div className="portal-card text-center">
+              <h2 className="fw-bold">
+                {metric.count}
+              </h2>
 
-            <p className="text-muted m-0">
-              Total Reports
-            </p>
+              <p className="text-muted m-0">
+                {metric.label}
+              </p>
+            </div>
           </div>
-        </div>
-
-        <div className="col-md-3">
-          <div className="portal-card text-center">
-            <h2 className="fw-bold">
-              {
-                reports.filter(
-                  (r) => r.status === "Tagged"
-                ).length
-              }
-            </h2>
-
-            <p className="text-muted m-0">
-              Tagged
-            </p>
-          </div>
-        </div>
-
-        <div className="col-md-3">
-          <div className="portal-card text-center">
-            <h2 className="fw-bold">
-              {
-                reports.filter(
-                  (r) => r.status === "Removed"
-                ).length
-              }
-            </h2>
-
-            <p className="text-muted m-0">
-              Removed
-            </p>
-          </div>
-        </div>
-
-        <div className="col-md-3">
-          <div className="portal-card text-center">
-            <h2 className="fw-bold">
-              {
-                reports.filter(
-                  (r) => r.status === "Closed"
-                ).length
-              }
-            </h2>
-
-            <p className="text-muted m-0">
-              Closed
-            </p>
-          </div>
-        </div>
-
-        <div className="col-md-3">
-          <div className="portal-card text-center">
-            <h2 className="fw-bold">
-              {
-                reports.filter(
-                  (r) => r.status === "Closed"
-                ).length
-              }
-            </h2>
-
-            <p className="text-muted m-0">
-              Closed
-            </p>
-          </div>
-        </div>
+        ))}
 
       </div>
 
