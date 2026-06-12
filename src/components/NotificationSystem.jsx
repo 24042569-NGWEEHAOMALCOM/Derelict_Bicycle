@@ -52,8 +52,8 @@ function NotificationSystem() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleNotificationClick = (notification) => {
-    // Navigate to the acknowledge page for the reported case
-    navigate(`/acknowledge/${notification.caseId}`);
+    // Navigate to the staff dashboard and open the reported case
+    navigate(`/staff?report=${notification.caseId}`);
     setShowNotifications(false);
   };
 

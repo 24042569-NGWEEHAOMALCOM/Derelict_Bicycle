@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
@@ -208,6 +208,7 @@ function Staff() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState("");
+  const location = useLocation();
 
   const getReportList = async () => {
     const querySnapshot = await getDocs(collection(db, "reports"));
@@ -312,6 +313,19 @@ function Staff() {
 
     loadReports();
   }, []);
+
+  // If a `report` query parameter is present, auto-select that report
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      const reportId = params.get("report");
+      if (reportId) {
+        setSelectedReportId(reportId);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [location.search]);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
