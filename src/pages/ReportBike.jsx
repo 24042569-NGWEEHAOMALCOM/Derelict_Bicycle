@@ -313,6 +313,7 @@ function ReportBike({ reportType = "abandoned" }) {
               </label>
               <InteractiveMapDisplay
                 locationInput={formData.location}
+                blockNumber={formData.blockNumber}
                 onLocationSelect={(location) => {
                   setGpsLocation(location);
                   setMessage({

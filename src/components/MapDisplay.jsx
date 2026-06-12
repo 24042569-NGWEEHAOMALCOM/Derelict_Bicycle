@@ -21,13 +21,14 @@ function MapClickHandler({ onLocationSelect }) {
   return null;
 }
 
-// Geocode postal code to coordinates
-const geocodePostalCode = async (postalCode) => {
+// Geocode postal code and block number to coordinates
+const geocodePostalCode = async (postalCode, blockNumber) => {
   if (!postalCode || postalCode.trim().length < 5) return null;
   
   try {
-    // Format: search for postal code in Singapore
-    const query = `${postalCode.trim()}, Singapore`;
+    // Format: search for postal code + block number in Singapore
+    const blockPart = blockNumber ? `Block ${blockNumber}` : "";
+    const query = `${blockPart} ${postalCode.trim()}, Singapore`.trim();
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
         query
@@ -49,7 +50,7 @@ const geocodePostalCode = async (postalCode) => {
 };
 
 // Custom hook to handle map center updates
-function MapCenterUpdater({ postalCode, mapInstance, onLocationFound }) {
+function MapCenterUpdater({ postalCode, blockNumber, mapInstance, onLocationFound }) {
   useEffect(() => {
     if (!postalCode || !postalCode.trim() || !mapInstance) return;
 
@@ -57,7 +58,7 @@ function MapCenterUpdater({ postalCode, mapInstance, onLocationFound }) {
     if (!/^\d{5,6}$/.test(postalCode.trim())) return;
 
     const debounceTimer = setTimeout(async () => {
-      const result = await geocodePostalCode(postalCode.trim());
+      const result = await geocodePostalCode(postalCode.trim(), blockNumber);
       if (result) {
         mapInstance.flyTo([result.latitude, result.longitude], 18, {
           duration: 1.2,
@@ -70,17 +71,18 @@ function MapCenterUpdater({ postalCode, mapInstance, onLocationFound }) {
     }, 300); // 300ms debounce for faster response
 
     return () => clearTimeout(debounceTimer);
-  }, [postalCode, mapInstance, onLocationFound]);
+  }, [postalCode, blockNumber, mapInstance, onLocationFound]);
 
   return null;
 }
 
-function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
+function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumber = "" }) {
   const defaultCenter = [1.383, 103.836]; // Nee Soon area
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const trimmedInput = locationInput ? locationInput.trim() : "";
+  const trimmedBlock = blockNumber ? blockNumber.trim() : "";
   const isValidPostalCode = /^\d{5,6}$/.test(trimmedInput);
 
   const handleLocationSelect = (location) => {
@@ -114,6 +116,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
         {mapInstance && (
           <MapCenterUpdater
             postalCode={trimmedInput}
+            blockNumber={trimmedBlock}
             mapInstance={mapInstance}
             onLocationFound={handleLocationFound}
           />
@@ -123,6 +126,8 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
           <Marker position={[selectedLocation.latitude, selectedLocation.longitude]}>
             <Popup>
               Bicycle Location<br />
+              {trimmedBlock && `Block ${trimmedBlock}<br />`}
+              Postal: {trimmedInput}<br />
               Lat: {selectedLocation.latitude.toFixed(6)}<br />
               Lng: {selectedLocation.longitude.toFixed(6)}
             </Popup>
@@ -131,11 +136,11 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
       </MapContainer>
       <div className="p-2 bg-light text-muted small text-center">
         {isSearching ? (
-          <span>🔍 Searching postal code {trimmedInput}...</span>
+          <span>📍 Pinning Block {trimmedBlock} at {trimmedInput}...</span>
         ) : trimmedInput && !isValidPostalCode ? (
           <span>⚠️ Enter a valid Singapore postal code (5-6 digits)</span>
         ) : (
-          <span>📍 Enter postal code (e.g., 550838) or click map</span>
+          <span>📍 Enter postal code & block number to drop pin</span>
         )}
       </div>
     </div>
