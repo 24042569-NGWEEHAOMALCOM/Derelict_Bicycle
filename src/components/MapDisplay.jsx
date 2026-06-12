@@ -21,16 +21,17 @@ function MapClickHandler({ onLocationSelect }) {
   return null;
 }
 
-// Geocode address to coordinates
-const geocodeAddress = async (address) => {
-  if (!address || address.trim().length < 2) return null;
+// Geocode postal code to coordinates
+const geocodePostalCode = async (postalCode) => {
+  if (!postalCode || postalCode.trim().length < 5) return null;
   
   try {
-    const query = `${address}, Singapore`;
+    // Format: search for postal code in Singapore
+    const query = `${postalCode.trim()}, Singapore`;
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
         query
-      )}&countrycodes=sg&limit=1`,
+      )}&countrycodes=sg&limit=1&zoom=17`,
       { headers: { "Accept-Language": "en" } }
     );
     const data = await response.json();
@@ -48,25 +49,28 @@ const geocodeAddress = async (address) => {
 };
 
 // Custom hook to handle map center updates
-function MapCenterUpdater({ location, mapInstance, onLocationFound }) {
+function MapCenterUpdater({ postalCode, mapInstance, onLocationFound }) {
   useEffect(() => {
-    if (!location || !location.trim() || !mapInstance) return;
+    if (!postalCode || !postalCode.trim() || !mapInstance) return;
+
+    // Only search if it's 5-6 digits (Singapore postal code format)
+    if (!/^\d{5,6}$/.test(postalCode.trim())) return;
 
     const debounceTimer = setTimeout(async () => {
-      const result = await geocodeAddress(location);
+      const result = await geocodePostalCode(postalCode);
       if (result) {
-        mapInstance.flyTo([result.latitude, result.longitude], 17, {
-          duration: 1.5,
+        mapInstance.flyTo([result.latitude, result.longitude], 18, {
+          duration: 1.2,
         });
         onLocationFound({
           latitude: result.latitude,
           longitude: result.longitude,
         });
       }
-    }, 800); // 800ms debounce
+    }, 600); // 600ms debounce for faster response
 
     return () => clearTimeout(debounceTimer);
-  }, [location, mapInstance, onLocationFound]);
+  }, [postalCode, mapInstance, onLocationFound]);
 
   return null;
 }
@@ -89,8 +93,10 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
   };
 
   useEffect(() => {
-    if (locationInput && locationInput.trim().length > 2) {
+    if (locationInput && /^\d{5,6}$/.test(locationInput.trim())) {
       setIsSearching(true);
+    } else {
+      setIsSearching(false);
     }
   }, [locationInput]);
 
@@ -108,7 +114,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
         />
         {mapInstance && (
           <MapCenterUpdater
-            location={locationInput}
+            postalCode={locationInput}
             mapInstance={mapInstance}
             onLocationFound={handleLocationFound}
           />
@@ -126,9 +132,11 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
       </MapContainer>
       <div className="p-2 bg-light text-muted small text-center">
         {isSearching ? (
-          <span>🔍 Searching for location...</span>
+          <span>🔍 Searching postal code...</span>
+        ) : locationInput && !/^\d{5,6}$/.test(locationInput.trim()) ? (
+          <span>⚠️ Enter a valid Singapore postal code (5-6 digits)</span>
         ) : (
-          <span>📍 Type location above or click map to set bicycle location</span>
+          <span>📍 Enter postal code or click map to set bicycle location</span>
         )}
       </div>
     </div>

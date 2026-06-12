@@ -257,20 +257,20 @@ function ReportBike({ reportType = "abandoned" }) {
 
             <div className="col-md-6">
               <label className="form-label" htmlFor="location">
-                Location <span className="text-danger">*</span>
+                Postal Code <span className="text-danger">*</span>
               </label>
               <input
                 className="form-control form-control-lg"
                 id="location"
                 name="location"
                 type="text"
-                placeholder="Example: 838 Void Deck"
+                placeholder="Example: 550838"
                 value={formData.location}
                 onChange={handleChange}
                 required
               />
               <div className="form-text">
-                Please also use the map below to pinpoint the location.
+                Enter postal code (e.g., 550838). Map will auto-navigate to the location.
               </div>
             </div>
 
