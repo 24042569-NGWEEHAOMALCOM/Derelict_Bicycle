@@ -115,15 +115,15 @@ function Resident() {
             <div className="portal-card h-100">
 
               <div className="icon-box icon-blue mb-4">
-                Park
+                Report
               </div>
 
               <h3 className="fw-bold">
-                Report Improper Parking
+                Report Improperly Parked Bicycle
               </h3>
 
               <p className="text-muted fs-5">
-                Report bicycles blocking pathways, doors, pipes, or causing obstruction.
+                Submit reports for bicycles blocking pathways or causing obstruction with location and details.
               </p>
 
             </div>
