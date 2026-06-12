@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
@@ -209,6 +209,7 @@ function Staff() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState("");
   const location = useLocation();
+  const listRefs = useRef({});
 
   const getReportList = async () => {
     const querySnapshot = await getDocs(collection(db, "reports"));
@@ -326,6 +327,20 @@ function Staff() {
       // ignore
     }
   }, [location.search]);
+
+  // Scroll the selected report into view when it changes
+  useEffect(() => {
+    if (!selectedReportId) return;
+    const el = listRefs.current[selectedReportId];
+    if (el && el.scrollIntoView) {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus && el.focus();
+      } catch (err) {
+        // ignore
+      }
+    }
+  }, [selectedReportId]);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
 
@@ -739,6 +754,7 @@ function Staff() {
               <div className="list-group">
                 {filteredReports.map((report) => (
                   <button
+                    ref={(el) => (listRefs.current[report.id] = el)}
                     className={`list-group-item list-group-item-action ${
                       selectedReportId === report.id ? "active" : ""
                     }`}
