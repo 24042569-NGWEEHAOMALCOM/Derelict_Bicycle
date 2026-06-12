@@ -27,7 +27,6 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
   const trimmedBlock = blockNumber?.trim();
 
   if (!trimmedPostal || trimmedPostal.length < 5) {
-    console.log("Invalid postal code:", postalCode);
     return null;
   }
 
@@ -35,14 +34,12 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
   const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10&countrycode=sg`;
 
   try {
-    console.log("Photon geocoding URL:", photonUrl);
     const response = await fetch(photonUrl, {
       headers: { "Accept-Language": "en" },
     });
 
     if (response.ok) {
       const data = await response.json();
-      console.log("Photon geocoding result:", data);
 
       if (Array.isArray(data?.features) && data.features.length > 0) {
         const exactPostcode = data.features.find(
@@ -65,11 +62,9 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
           };
         }
       }
-    } else {
-      console.warn("Photon response not ok:", response.status);
     }
   } catch (error) {
-    console.warn("Photon geocoding failed:", error);
+    // Photon geocoding failed, will try Nominatim fallback
   }
 
   // Fallback to Nominatim postal / Singapore search if Photon fails
@@ -80,19 +75,15 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
       limit: "3",
       addressdetails: "1",
     }).toString()}`;
-
-    console.log("Nominatim fallback URL:", nominatimUrl);
     const response = await fetch(nominatimUrl, {
       headers: { "Accept-Language": "en" },
     });
 
     if (!response.ok) {
-      console.error("Nominatim fallback response error:", response.status);
       return null;
     }
 
     const data = await response.json();
-    console.log("Nominatim fallback result:", data);
 
     if (Array.isArray(data) && data.length > 0) {
       const locationItem = data.find((item) => item.type === "postcode") || data[0];
@@ -103,10 +94,9 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
       };
     }
   } catch (error) {
-    console.error("Nominatim fallback error:", error);
+    // Nominatim fallback also failed
   }
 
-  console.log("No results found for postal code:", postalCode, "block:", blockNumber);
   return null;
 };
 
@@ -143,29 +133,22 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
 
     // Only proceed if we have a valid postal code
     if (!isValidPostalCode) {
-      console.log("Skipping search - isValid:", isValidPostalCode);
       return;
     }
-
-    console.log("Setting up search timer for:", trimmedInput, trimmedBlock);
     setIsSearching(true);
 
     // Use ref to store timeout for cleanup
     searchTimeoutRef.current = setTimeout(async () => {
-      console.log("Search timer triggered");
       try {
         const result = await geocodePostalCode(trimmedInput, trimmedBlock);
         if (result) {
-          console.log("Moving map to:", result);
           setSelectedLocation(result);
           onLocationSelect(result);
           setIsSearching(false);
         } else {
-          console.log("No location found");
           setIsSearching(false);
         }
       } catch (err) {
-        console.error("Search error:", err);
         setIsSearching(false);
       }
     }, 400);
@@ -179,7 +162,6 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
   }, [trimmedInput, trimmedBlock, isValidPostalCode, onLocationSelect]);
 
   const handleLocationSelect = (location) => {
-    console.log("Map clicked, selecting location:", location);
     setSelectedLocation(location);
     onLocationSelect(location);
   };
