@@ -210,6 +210,7 @@ function Staff() {
   const [selectedReportId, setSelectedReportId] = useState("");
   const location = useLocation();
   const listRefs = useRef({});
+  const detailsRef = useRef(null);
 
   const getReportList = async () => {
     const querySnapshot = await getDocs(collection(db, "reports"));
@@ -336,6 +337,15 @@ function Staff() {
       try {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.focus && el.focus();
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // Also scroll the details panel into view (right column) if present
+    if (detailsRef.current && detailsRef.current.scrollIntoView) {
+      try {
+        detailsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch (err) {
         // ignore
       }
@@ -898,17 +908,17 @@ function Staff() {
                               </div>
                             )}
                             {selectedReport.gpsLocation && (
-                              <div className="col-12">
-                                <p className="text-muted small text-uppercase mb-2">GPS Coordinates</p>
-                                <p className="fw-semibold mb-2">
-                                  {selectedReport.gpsLocation.latitude.toFixed(6)}, {selectedReport.gpsLocation.longitude.toFixed(6)}
-                                </p>
-                                <MapDisplay
-                                  latitude={selectedReport.gpsLocation.latitude}
-                                  longitude={selectedReport.gpsLocation.longitude}
-                                />
-                              </div>
-                            )}
+                                      <div className="col-12" ref={detailsRef}>
+                                        <p className="text-muted small text-uppercase mb-2">GPS Coordinates</p>
+                                        <p className="fw-semibold mb-2">
+                                          {selectedReport.gpsLocation.latitude.toFixed(6)}, {selectedReport.gpsLocation.longitude.toFixed(6)}
+                                        </p>
+                                        <MapDisplay
+                                          latitude={selectedReport.gpsLocation.latitude}
+                                          longitude={selectedReport.gpsLocation.longitude}
+                                        />
+                                      </div>
+                                    )}
                           </div>
                         </div>
                       </div>
