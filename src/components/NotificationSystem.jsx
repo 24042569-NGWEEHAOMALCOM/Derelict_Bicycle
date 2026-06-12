@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
 function NotificationSystem() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -27,6 +29,7 @@ function NotificationSystem() {
             message: `New ${report.status.toLowerCase()} report at Block ${report.blockNumber}`,
             timestamp: report.createdAt,
             read: false,
+            caseId: report.id,
           });
         }
       });
@@ -48,6 +51,12 @@ function NotificationSystem() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  const handleNotificationClick = (notification) => {
+    // Navigate to the acknowledge page for the reported case
+    navigate(`/acknowledge/${notification.caseId}`);
+    setShowNotifications(false);
+  };
+
   return (
     <div className="position-relative">
       <button
@@ -64,22 +73,36 @@ function NotificationSystem() {
       </button>
 
       {showNotifications && (
-        <div className="position-absolute top-100 end-0 mt-2 bg-white border rounded shadow" style={{ width: "300px", zIndex: 1050 }}>
+        <div className="position-absolute top-100 end-0 mt-2 bg-white border rounded shadow" style={{ width: "320px", zIndex: 1050 }}>
           <div className="p-3 border-bottom">
-            <h6 className="mb-0">Notifications</h6>
+            <h6 className="mb-0">📢 New Reports</h6>
           </div>
-          <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+          <div style={{ maxHeight: "350px", overflowY: "auto" }}>
             {notifications.length === 0 ? (
               <div className="p-3 text-muted text-center">
                 No new notifications
               </div>
             ) : (
               notifications.map((notification) => (
-                <div key={notification.id} className="p-3 border-bottom">
-                  <p className="mb-1 small">{notification.message}</p>
+                <div
+                  key={notification.id}
+                  className="p-3 border-bottom"
+                  style={{
+                    cursor: "pointer",
+                    backgroundColor: "#f8f9fa",
+                    transition: "background-color 0.2s",
+                  }}
+                  onClick={() => handleNotificationClick(notification)}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e9ecef")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#f8f9fa")}
+                >
+                  <p className="mb-1 small fw-semibold">{notification.message}</p>
                   <small className="text-muted">
                     {notification.timestamp?.toDate().toLocaleString()}
                   </small>
+                  <div className="mt-2">
+                    <span className="badge bg-primary">View Case →</span>
+                  </div>
                 </div>
               ))
             )}

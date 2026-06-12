@@ -312,6 +312,7 @@ function ReportBike({ reportType = "abandoned" }) {
                 📍 Set Bicycle Location on Map
               </label>
               <InteractiveMapDisplay
+                locationInput={formData.location}
                 onLocationSelect={(location) => {
                   setGpsLocation(location);
                   setMessage({
