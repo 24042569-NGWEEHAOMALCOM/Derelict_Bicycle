@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useState, useEffect, useRef } from "react";
@@ -23,50 +23,106 @@ function MapClickHandler({ onLocationSelect }) {
 
 // Geocode postal code and block number to coordinates
 const geocodePostalCode = async (postalCode, blockNumber) => {
-  if (!postalCode || postalCode.trim().length < 5) {
+  const trimmedPostal = postalCode?.trim();
+  const trimmedBlock = blockNumber?.trim();
+
+  if (!trimmedPostal || trimmedPostal.length < 5) {
     console.log("Invalid postal code:", postalCode);
     return null;
   }
-  
+
+  const query = `${trimmedPostal} Singapore`;
+  const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10&countrycode=sg`;
+
   try {
-    let query;
-    if (blockNumber && blockNumber.trim()) {
-      query = `Block ${blockNumber.trim()} ${postalCode.trim()}, Singapore`;
-    } else {
-      query = `${postalCode.trim()}, Singapore`;
-    }
-    
-    console.log("Geocoding query:", query);
-    
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=sg&limit=1`;
-    const response = await fetch(url, { 
-      headers: { "Accept-Language": "en" }
+    console.log("Photon geocoding URL:", photonUrl);
+    const response = await fetch(photonUrl, {
+      headers: { "Accept-Language": "en" },
     });
-    
-    if (!response.ok) {
-      console.error("API response error:", response.status);
-      return null;
-    }
-    
-    const data = await response.json();
-    console.log("Geocoding result:", data);
-    
-    if (data && data.length > 0) {
-      const result = {
-        latitude: parseFloat(data[0].lat),
-        longitude: parseFloat(data[0].lon),
-        displayName: data[0].display_name,
-      };
-      console.log("Found location:", result);
-      return result;
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Photon geocoding result:", data);
+
+      if (Array.isArray(data?.features) && data.features.length > 0) {
+        const exactPostcode = data.features.find(
+          (feature) =>
+            feature.properties?.osm_key === "place" &&
+            feature.properties?.osm_value === "postcode" &&
+            feature.properties?.name === trimmedPostal
+        );
+
+        const bestMatch = exactPostcode || data.features.find(
+          (feature) => feature.properties?.countrycode === "SG"
+        ) || data.features[0];
+
+        const [lon, lat] = bestMatch.geometry?.coordinates || [];
+        if (lat != null && lon != null) {
+          return {
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lon),
+            displayName: `${trimmedBlock ? `Block ${trimmedBlock}, ` : ""}${trimmedPostal}, Singapore`,
+          };
+        }
+      }
     } else {
-      console.log("No results found for query:", query);
+      console.warn("Photon response not ok:", response.status);
     }
   } catch (error) {
-    console.error("Geocoding error:", error);
+    console.warn("Photon geocoding failed:", error);
   }
+
+  // Fallback to Nominatim postal / Singapore search if Photon fails
+  try {
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
+      format: "json",
+      q: `${trimmedPostal} Singapore`,
+      limit: "3",
+      addressdetails: "1",
+    }).toString()}`;
+
+    console.log("Nominatim fallback URL:", nominatimUrl);
+    const response = await fetch(nominatimUrl, {
+      headers: { "Accept-Language": "en" },
+    });
+
+    if (!response.ok) {
+      console.error("Nominatim fallback response error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log("Nominatim fallback result:", data);
+
+    if (Array.isArray(data) && data.length > 0) {
+      const locationItem = data.find((item) => item.type === "postcode") || data[0];
+      return {
+        latitude: parseFloat(locationItem.lat),
+        longitude: parseFloat(locationItem.lon),
+        displayName: locationItem.display_name,
+      };
+    }
+  } catch (error) {
+    console.error("Nominatim fallback error:", error);
+  }
+
+  console.log("No results found for postal code:", postalCode, "block:", blockNumber);
   return null;
 };
+
+function MapUpdater({ location }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (location && map) {
+      map.flyTo([location.latitude, location.longitude], 18, {
+        duration: 1,
+      });
+    }
+  }, [location, map]);
+
+  return null;
+}
 
 function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumber = "" }) {
   const defaultCenter = [1.383, 103.836]; // Nee Soon area
@@ -102,15 +158,8 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
         const result = await geocodePostalCode(trimmedInput, trimmedBlock);
         if (result) {
           console.log("Moving map to:", result);
-          // Update location first
           setSelectedLocation(result);
           onLocationSelect(result);
-          // Then move map
-          setTimeout(() => {
-            mapInstance.flyTo([result.latitude, result.longitude], 18, {
-              duration: 1,
-            });
-          }, 100);
           setIsSearching(false);
         } else {
           console.log("No location found");
@@ -149,6 +198,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <MapClickHandler onLocationSelect={handleLocationSelect} />
+        <MapUpdater location={selectedLocation} />
         {selectedLocation && (
           <Marker position={[selectedLocation.latitude, selectedLocation.longitude]}>
             <Popup>
