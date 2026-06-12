@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // Fix for default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -29,7 +29,6 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
   }
   
   try {
-    // Format: search for postal code + block number in Singapore
     let query;
     if (blockNumber && blockNumber.trim()) {
       query = `Block ${blockNumber.trim()} ${postalCode.trim()}, Singapore`;
@@ -41,9 +40,13 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
     
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=sg&limit=1`;
     const response = await fetch(url, { 
-      headers: { "Accept-Language": "en" },
-      timeout: 5000 
+      headers: { "Accept-Language": "en" }
     });
+    
+    if (!response.ok) {
+      console.error("API response error:", response.status);
+      return null;
+    }
     
     const data = await response.json();
     console.log("Geocoding result:", data);
@@ -70,36 +73,61 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef(null);
+  
   const trimmedInput = locationInput ? locationInput.trim() : "";
   const trimmedBlock = blockNumber ? blockNumber.trim() : "";
   const isValidPostalCode = /^\d{5,6}$/.test(trimmedInput);
 
   // Handle automatic search when postal code changes
   useEffect(() => {
-    if (!mapInstance || !isValidPostalCode || !trimmedInput) {
+    // Clear any existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Only proceed if we have a valid postal code and map instance
+    if (!mapInstance || !isValidPostalCode) {
+      console.log("Skipping search - mapInstance:", !!mapInstance, "isValid:", isValidPostalCode);
       return;
     }
 
-    console.log("Triggering search for postal code:", trimmedInput, "block:", trimmedBlock);
+    console.log("Setting up search timer for:", trimmedInput, trimmedBlock);
     setIsSearching(true);
 
-    const searchTimer = setTimeout(async () => {
-      const result = await geocodePostalCode(trimmedInput, trimmedBlock);
-      if (result) {
-        console.log("Moving map to:", result);
-        mapInstance.flyTo([result.latitude, result.longitude], 18, {
-          duration: 1,
-        });
-        setSelectedLocation(result);
-        onLocationSelect(result);
-        setIsSearching(false);
-      } else {
-        console.log("Search returned no results");
+    // Use ref to store timeout for cleanup
+    searchTimeoutRef.current = setTimeout(async () => {
+      console.log("Search timer triggered");
+      try {
+        const result = await geocodePostalCode(trimmedInput, trimmedBlock);
+        if (result) {
+          console.log("Moving map to:", result);
+          // Update location first
+          setSelectedLocation(result);
+          onLocationSelect(result);
+          // Then move map
+          setTimeout(() => {
+            mapInstance.flyTo([result.latitude, result.longitude], 18, {
+              duration: 1,
+            });
+          }, 100);
+          setIsSearching(false);
+        } else {
+          console.log("No location found");
+          setIsSearching(false);
+        }
+      } catch (err) {
+        console.error("Search error:", err);
         setIsSearching(false);
       }
-    }, 500);
+    }, 400);
 
-    return () => clearTimeout(searchTimer);
+    // Cleanup function
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [trimmedInput, trimmedBlock, mapInstance, isValidPostalCode, onLocationSelect]);
 
   const handleLocationSelect = (location) => {
