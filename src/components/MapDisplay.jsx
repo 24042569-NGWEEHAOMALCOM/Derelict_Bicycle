@@ -127,7 +127,6 @@ function MapUpdater({ location }) {
 function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumber = "" }) {
   const defaultCenter = [1.383, 103.836]; // Nee Soon area
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [mapInstance, setMapInstance] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
   
@@ -142,9 +141,9 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
       clearTimeout(searchTimeoutRef.current);
     }
 
-    // Only proceed if we have a valid postal code and map instance
-    if (!mapInstance || !isValidPostalCode) {
-      console.log("Skipping search - mapInstance:", !!mapInstance, "isValid:", isValidPostalCode);
+    // Only proceed if we have a valid postal code
+    if (!isValidPostalCode) {
+      console.log("Skipping search - isValid:", isValidPostalCode);
       return;
     }
 
@@ -177,7 +176,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [trimmedInput, trimmedBlock, mapInstance, isValidPostalCode, onLocationSelect]);
+  }, [trimmedInput, trimmedBlock, isValidPostalCode, onLocationSelect]);
 
   const handleLocationSelect = (location) => {
     console.log("Map clicked, selecting location:", location);
@@ -191,7 +190,6 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
         center={defaultCenter}
         zoom={15}
         style={{ width: "100%", height: "400px" }}
-        whenCreated={setMapInstance}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
