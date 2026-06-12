@@ -57,7 +57,7 @@ function MapCenterUpdater({ postalCode, mapInstance, onLocationFound }) {
     if (!/^\d{5,6}$/.test(postalCode.trim())) return;
 
     const debounceTimer = setTimeout(async () => {
-      const result = await geocodePostalCode(postalCode);
+      const result = await geocodePostalCode(postalCode.trim());
       if (result) {
         mapInstance.flyTo([result.latitude, result.longitude], 18, {
           duration: 1.2,
@@ -67,7 +67,7 @@ function MapCenterUpdater({ postalCode, mapInstance, onLocationFound }) {
           longitude: result.longitude,
         });
       }
-    }, 600); // 600ms debounce for faster response
+    }, 300); // 300ms debounce for faster response
 
     return () => clearTimeout(debounceTimer);
   }, [postalCode, mapInstance, onLocationFound]);
@@ -80,6 +80,8 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const trimmedInput = locationInput ? locationInput.trim() : "";
+  const isValidPostalCode = /^\d{5,6}$/.test(trimmedInput);
 
   const handleLocationSelect = (location) => {
     setSelectedLocation(location);
@@ -93,12 +95,8 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
   };
 
   useEffect(() => {
-    if (locationInput && /^\d{5,6}$/.test(locationInput.trim())) {
-      setIsSearching(true);
-    } else {
-      setIsSearching(false);
-    }
-  }, [locationInput]);
+    setIsSearching(isValidPostalCode && trimmedInput.length > 0);
+  }, [trimmedInput, isValidPostalCode]);
 
   return (
     <div style={{ borderRadius: "8px", overflow: "hidden", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
@@ -107,6 +105,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
         zoom={15}
         style={{ width: "100%", height: "400px" }}
         whenCreated={setMapInstance}
+        key={`map-${Date.now()}`}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -114,7 +113,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
         />
         {mapInstance && (
           <MapCenterUpdater
-            postalCode={locationInput}
+            postalCode={trimmedInput}
             mapInstance={mapInstance}
             onLocationFound={handleLocationFound}
           />
@@ -132,11 +131,11 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "" }) {
       </MapContainer>
       <div className="p-2 bg-light text-muted small text-center">
         {isSearching ? (
-          <span>🔍 Searching postal code...</span>
-        ) : locationInput && !/^\d{5,6}$/.test(locationInput.trim()) ? (
+          <span>🔍 Searching postal code {trimmedInput}...</span>
+        ) : trimmedInput && !isValidPostalCode ? (
           <span>⚠️ Enter a valid Singapore postal code (5-6 digits)</span>
         ) : (
-          <span>📍 Enter postal code or click map to set bicycle location</span>
+          <span>📍 Enter postal code (e.g., 550838) or click map</span>
         )}
       </div>
     </div>
