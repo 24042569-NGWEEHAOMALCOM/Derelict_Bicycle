@@ -119,14 +119,11 @@ function QRPage() {
 
         {isImproperParking && (
           <div className="alert alert-warning">
-            <p className="fw-bold mb-2">
-              {isSecondWarningNotice ? "Warning Notice" : "Improper Parking Warning"}
-            </p>
-
+          
             <p className="mb-0">
               {isSecondWarningNotice
                 ? "2nd warning for improper parking. It has been locked by Town Council. Please head down to the Town Council office for assistance."
-                : "This bicycle has been reported for improper parking."}
+                : "This bicycle has been reported for improper parking by Nee Soon Town Council."}
             </p>
           </div>
         )}
@@ -193,6 +190,12 @@ function QRPage() {
 
           </div>
         )}
+
+        <div className="alert alert-warning">
+            <p className="mb-0">
+              If you have any questions, please contact us at <a href="mailto:NSTC@gmail.com">NSTC@gmail.com.</a>
+            </p>
+          </div>
 
         {!isFinalStatus && isImproperParking && (
           <div className="d-flex flex-wrap gap-3 mt-4">
