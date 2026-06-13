@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
 import NotificationSystem from "../components/NotificationSystem";
@@ -153,6 +153,29 @@ const getStatusActions = (report) => {
 const isClosedStatus = (status) =>
   status === "Closed" || status?.startsWith("Closed -");
 
+const isUnreadReport = (report) => report?.read === false;
+
+const seenReportsStorageKey = "staffSeenReportIds";
+
+const getStoredSeenReportIds = () => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(seenReportsStorageKey) || "[]"));
+  } catch (error) {
+    return new Set();
+  }
+};
+
+const storeSeenReportIds = (seenReportIds) => {
+  try {
+    localStorage.setItem(
+      seenReportsStorageKey,
+      JSON.stringify(Array.from(seenReportIds))
+    );
+  } catch (error) {
+    console.error("Error storing seen reports:", error);
+  }
+};
+
 const getTopCounts = (items, fieldName, limit = 5) => {
   const countMap = items.reduce((currentCounts, item) => {
     const key = item[fieldName]?.trim();
@@ -211,6 +234,27 @@ function Staff() {
   const location = useLocation();
   const listRefs = useRef({});
   const detailsRef = useRef(null);
+  const readUpdateAttemptsRef = useRef(new Set());
+  const seenReportIdsRef = useRef(getStoredSeenReportIds());
+  const hasSeenBaselineRef = useRef(
+    localStorage.getItem(seenReportsStorageKey) !== null
+  );
+
+  const applyReadState = (reportList) => {
+    if (!hasSeenBaselineRef.current) {
+      seenReportIdsRef.current = new Set(reportList.map((report) => report.id));
+      storeSeenReportIds(seenReportIdsRef.current);
+      hasSeenBaselineRef.current = true;
+    }
+
+    return reportList.map((report) => ({
+      ...report,
+      read:
+        report.read === false || !seenReportIdsRef.current.has(report.id)
+          ? false
+          : true,
+    }));
+  };
 
   const getReportList = async () => {
     const querySnapshot = await getDocs(collection(db, "reports"));
@@ -224,7 +268,7 @@ function Staff() {
   const fetchReports = async () => {
     const reportList = await getReportList();
 
-    setReports(reportList);
+    setReports(applyReadState(reportList));
   };
 
   const updateStatus = async (reportId, newStatus) => {
@@ -301,19 +345,24 @@ function Staff() {
   };
 
   useEffect(() => {
-    const loadReports = async () => {
-      try {
-        const reportList = await getReportList();
+    const unsubscribe = onSnapshot(
+      collection(db, "reports"),
+      (querySnapshot) => {
+        const reportList = querySnapshot.docs.map((docItem) => ({
+          id: docItem.id,
+          ...docItem.data(),
+        }));
 
-        setReports(reportList);
-      } catch (error) {
+        setReports(applyReadState(reportList));
+        setIsLoading(false);
+      },
+      (error) => {
         console.error("Error fetching reports:", error);
-      } finally {
         setIsLoading(false);
       }
-    };
+    );
 
-    loadReports();
+    return unsubscribe;
   }, []);
 
   // If a `report` query parameter is present, auto-select that report
@@ -328,6 +377,47 @@ function Staff() {
       // ignore
     }
   }, [location.search]);
+
+  useEffect(() => {
+    if (!selectedReportId) return;
+
+    const selectedReport = reports.find((report) => report.id === selectedReportId);
+    if (!isUnreadReport(selectedReport)) return;
+    if (readUpdateAttemptsRef.current.has(selectedReportId)) return;
+
+    const readAt = new Date();
+    readUpdateAttemptsRef.current.add(selectedReportId);
+    seenReportIdsRef.current.add(selectedReportId);
+    storeSeenReportIds(seenReportIdsRef.current);
+
+    setReports((currentReports) =>
+      currentReports.map((report) =>
+        report.id === selectedReportId
+          ? { ...report, read: true, readAt }
+          : report
+      )
+    );
+
+    const markReportRead = async () => {
+      try {
+        await updateDoc(doc(db, "reports", selectedReportId), {
+          read: true,
+          readAt,
+        });
+      } catch (error) {
+        console.error("Error marking report as read:", error);
+        setReports((currentReports) =>
+          currentReports.map((report) =>
+            report.id === selectedReportId
+              ? { ...report, read: false, readAt: selectedReport.readAt }
+              : report
+          )
+        );
+      }
+    };
+
+    markReportRead();
+  }, [reports, selectedReportId]);
 
   // Scroll the selected report into view when it changes
   useEffect(() => {
@@ -384,6 +474,7 @@ function Staff() {
   });
 
   const selectedReport = reports.find((report) => report.id === selectedReportId);
+  const unreadCount = reports.filter(isUnreadReport).length;
   const hasClaimResponse =
     selectedReport?.claimName ||
     selectedReport?.claimPhone ||
@@ -761,51 +852,71 @@ function Staff() {
                 </span>
               </div>
 
+              {unreadCount > 0 && (
+                <div className="d-flex align-items-center justify-content-between rounded border bg-light px-3 py-2 mb-3">
+                  <span className="small fw-semibold text-dark">
+                    New submitted reports
+                  </span>
+                  <span className="badge bg-danger">
+                    {unreadCount} unread
+                  </span>
+                </div>
+              )}
+
               <div className="list-group">
-                {filteredReports.map((report) => (
-                  <button
-                    ref={(el) => (listRefs.current[report.id] = el)}
-                    className={`list-group-item list-group-item-action ${
-                      selectedReportId === report.id ? "active" : ""
-                    }`}
-                    type="button"
-                    key={report.id}
-                    onClick={() => setSelectedReportId(report.id)}
-                  >
-                    <div className="d-flex justify-content-between align-items-start gap-3">
-                      <div className="text-start">
-                        <p className="fw-semibold mb-1">
-                          {report.id}
-                        </p>
+                {filteredReports.map((report) => {
+                  const isUnread = isUnreadReport(report);
 
-                        <p className="small mb-0">
-                          Block {report.blockNumber || "N/A"} -{" "}
-                          {report.location || "No location"}
-                        </p>
-
-                        <p className="small mb-0 mt-1 text-muted">
-                          {getReportTypeLabel(report)}
-                        </p>
-
-                        {report.imageUrl && (
-                          <p className="small mb-0 mt-1">
-                            Image attached
+                  return (
+                    <button
+                      ref={(el) => (listRefs.current[report.id] = el)}
+                      className={`list-group-item list-group-item-action ${
+                        selectedReportId === report.id ? "active" : ""
+                      } ${isUnread ? "border-start border-4 border-danger" : ""}`}
+                      type="button"
+                      key={report.id}
+                      onClick={() => setSelectedReportId(report.id)}
+                    >
+                      <div className="d-flex justify-content-between align-items-start gap-3">
+                        <div className="text-start">
+                          <p className="fw-semibold mb-1">
+                            {isUnread && (
+                              <span className="badge bg-danger me-2">
+                                New
+                              </span>
+                            )}
+                            {report.id}
                           </p>
-                        )}
 
-                        {report.bicycleType && (
+                          <p className="small mb-0">
+                            Block {report.blockNumber || "N/A"} -{" "}
+                            {report.location || "No location"}
+                          </p>
+
                           <p className="small mb-0 mt-1 text-muted">
-                            {report.condition || 'Unknown condition'}
+                            {getReportTypeLabel(report)}
                           </p>
-                        )}
-                      </div>
 
-                      <span className={`badge ${getBadgeClass(report.status)}`}>
-                        {getDisplayStatus(report.status) || "Unknown"}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                          {report.imageUrl && (
+                            <p className="small mb-0 mt-1">
+                              Image attached
+                            </p>
+                          )}
+
+                          {report.bicycleType && (
+                            <p className="small mb-0 mt-1 text-muted">
+                              {report.condition || 'Unknown condition'}
+                            </p>
+                          )}
+                        </div>
+
+                        <span className={`badge ${getBadgeClass(report.status)}`}>
+                          {getDisplayStatus(report.status) || "Unknown"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

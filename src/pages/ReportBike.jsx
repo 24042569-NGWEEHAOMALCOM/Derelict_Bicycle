@@ -187,6 +187,7 @@ function ReportBike({ reportType = "abandoned" }) {
         ...report,
         imageUrl,
         status: "Reported",
+        read: false,
         pointsEarned: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
