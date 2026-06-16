@@ -155,6 +155,44 @@ const isClosedStatus = (status) =>
 
 const isUnreadReport = (report) => report?.read === false;
 
+const cleanText = (value) => String(value || "").trim().toLowerCase();
+
+const getPossibleDuplicateReports = (selectedReport, reportList) => {
+  if (!selectedReport) return [];
+
+  const same = (firstValue, secondValue) =>
+    cleanText(firstValue) === cleanText(secondValue);
+  const words = cleanText(selectedReport.description)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/);
+  const plate = cleanText(selectedReport.licensePlate);
+
+  return reportList
+    .filter(
+      (report) =>
+        report.id !== selectedReport.id &&
+        report.caseType === selectedReport.caseType &&
+        same(report.blockNumber, selectedReport.blockNumber) &&
+        same(report.location, selectedReport.location)
+    )
+    .map((report) => ({
+      report,
+      reasons: [
+        "same case type",
+        "same block and postal code",
+        ...(words.some(
+          (word) => word.length > 2 && cleanText(report.description).includes(word)
+        )
+          ? ["similar description"]
+          : []),
+        ...(plate && same(plate, report.licensePlate)
+          ? ["same license plate"]
+          : []),
+      ],
+    }))
+    .slice(0, 5);
+};
+
 const seenReportsStorageKey = "staffSeenReportIds";
 
 const getStoredSeenReportIds = () => {
@@ -487,6 +525,7 @@ function Staff() {
   const hasResidentResponse =
     hasClaimResponse || hasNotAbandonedResponse || hasAcknowledgementResponse;
   const availableStatusActions = getStatusActions(selectedReport);
+  const possibleDuplicateReports = getPossibleDuplicateReports(selectedReport, reports);
   const statusCounts = statusOptions
     .filter((status) => status !== "All")
     .map((status) => ({
@@ -1053,6 +1092,86 @@ function Staff() {
                           <p className="text-muted mb-0">
                             No image was uploaded for this report.
                           </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="col-12">
+                      <div className="border rounded-3 p-3">
+                        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-2 mb-3">
+                          <div>
+                            <h3 className="h5 fw-bold mb-1">
+                              Possible Duplicate Reports
+                            </h3>
+
+                            <p className="text-muted mb-0">
+                              Matched using case type, block and postal code,
+                              description, and license plate.
+                            </p>
+                          </div>
+
+                          <span className="badge bg-light text-dark">
+                            {possibleDuplicateReports.length} matches
+                          </span>
+                        </div>
+
+                        {possibleDuplicateReports.length === 0 ? (
+                          <div className="alert alert-secondary mb-0">
+                            No likely duplicate reports found.
+                          </div>
+                        ) : (
+                          <div className="vstack gap-3">
+                            {possibleDuplicateReports.map((match) => (
+                              <div
+                                className="duplicate-report-match border rounded-3 p-3"
+                                key={match.report.id}
+                              >
+                                <div className="d-flex flex-column flex-md-row justify-content-between gap-3">
+                                  <div>
+                                    <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                      <p className="fw-semibold mb-0">
+                                        {match.report.id}
+                                      </p>
+
+                                      <span className={`badge ${getBadgeClass(match.report.status)}`}>
+                                        {getDisplayStatus(match.report.status) || "Unknown"}
+                                      </span>
+                                    </div>
+
+                                    <p className="mb-1">
+                                      Block {match.report.blockNumber || "N/A"} -{" "}
+                                      Postal Code {match.report.location || "N/A"}
+                                    </p>
+
+                                    <p className="text-muted small mb-2">
+                                      Submitted {formatDate(match.report.createdAt)}
+                                    </p>
+
+                                    <div className="d-flex flex-wrap gap-2">
+                                      {match.reasons.map((reason) => (
+                                        <span
+                                          className="badge bg-light text-dark border"
+                                          key={`${match.report.id}-${reason}`}
+                                        >
+                                          {reason}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-md-end">
+                                    <button
+                                      className="btn btn-outline-primary btn-sm"
+                                      type="button"
+                                      onClick={() => setSelectedReportId(match.report.id)}
+                                    >
+                                      View Report
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
