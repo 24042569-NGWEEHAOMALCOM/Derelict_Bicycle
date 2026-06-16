@@ -77,6 +77,23 @@ body {
   word-break: break-word;
 }
 
+.staff-report-summary {
+  min-width: 0;
+}
+
+.staff-report-id,
+.staff-report-summary p {
+  overflow-wrap: anywhere;
+}
+
+.staff-report-status-badge {
+  flex-shrink: 0;
+  line-height: 1.25;
+  max-width: 13rem;
+  text-align: left;
+  white-space: normal;
+}
+
 .icon-box {
   width: 72px;
   height: 72px;
@@ -289,6 +306,17 @@ body {
 
   .portal-card {
     padding: 24px;
+  }
+
+  .staff-report-row {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 8px !important;
+  }
+
+  .staff-report-status-badge {
+    align-self: flex-start;
+    max-width: 100%;
   }
 
   .report-image {

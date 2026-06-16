@@ -877,9 +877,9 @@ function Staff() {
                       key={report.id}
                       onClick={() => setSelectedReportId(report.id)}
                     >
-                      <div className="d-flex justify-content-between align-items-start gap-3">
-                        <div className="text-start">
-                          <p className="fw-semibold mb-1">
+                      <div className="staff-report-row d-flex justify-content-between align-items-start gap-3">
+                        <div className="staff-report-summary text-start">
+                          <p className="staff-report-id fw-semibold mb-1">
                             {isUnread && (
                               <span className="badge bg-danger me-2">
                                 New
@@ -910,7 +910,7 @@ function Staff() {
                           )}
                         </div>
 
-                        <span className={`badge ${getBadgeClass(report.status)}`}>
+                        <span className={`staff-report-status-badge badge ${getBadgeClass(report.status)}`}>
                           {getDisplayStatus(report.status) || "Unknown"}
                         </span>
                       </div>
