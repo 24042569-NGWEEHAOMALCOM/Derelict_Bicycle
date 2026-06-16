@@ -128,6 +128,12 @@ function QRPage() {
           </div>
         )}
 
+        <div className="alert alert-warning d-flex flex-wrap gap-3 mt-4">
+            <p className="mb-0">
+              This bicycle has been identified as a possible abandoned bicycle by Nee Soon Town Council.
+            </p>
+        </div>
+
         <p className="fs-5">
           <strong>Report ID:</strong> {report.id}
         </p>
@@ -171,7 +177,8 @@ function QRPage() {
             </div>
           ) : isImproperParking ? null : (
             <div className="alert alert-warning">
-              This bicycle is still within the notice period.
+              If this bicycle belongs to you, please submit a response before the expiry date.
+              Otherwise, the bicycle may be removed by Nee Soon Town Council.
             </div>
           )}
 
@@ -191,11 +198,11 @@ function QRPage() {
           </div>
         )}
 
-        <div className="alert alert-warning">
+        <div className="alert alert-warning d-flex flex-wrap gap-3 mt-4">
             <p className="mb-0">
-              If you have any questions, please contact us at <a href="mailto:NSTC@gmail.com">NSTC@gmail.com.</a>
+              Questions about this notice? Contact us at <a href="mailto:feedback@nstc.org.sg">feedback@nstc.org.sg</a>
             </p>
-          </div>
+        </div>
 
         {!isFinalStatus && isImproperParking && (
           <div className="d-flex flex-wrap gap-3 mt-4">
