@@ -128,11 +128,11 @@ function QRPage() {
           </div>
         )}
 
-        <div className="alert alert-warning d-flex flex-wrap gap-3 mt-4">
-            <p className="mb-0">
-              This bicycle has been identified as a possible abandoned bicycle by Nee Soon Town Council.
-            </p>
-        </div>
+        {!isImproperParking && (
+          <div className="alert alert-warning">
+            This bicycle has been identified as a possible abandoned bicycle by Nee Soon Town Council.
+          </div>
+        )}
 
         <p className="fs-5">
           <strong>Report ID:</strong> {report.id}
