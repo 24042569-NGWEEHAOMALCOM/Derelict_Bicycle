@@ -50,13 +50,17 @@ function ReportBike({ reportType = "abandoned" }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [gpsLocation, setGpsLocation] = useState(null);
+  const [submitNotice, setSubmitNotice] = useState(null);
 
   useEffect(() => {
-    // Request notification permission on component mount
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
+    if (!submitNotice) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setSubmitNotice(null);
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [submitNotice]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -65,6 +69,28 @@ function ReportBike({ reportType = "abandoned" }) {
       ...currentFormData,
       [name]: value,
     }));
+  };
+
+  const showSubmitNotification = async () => {
+    setSubmitNotice({
+      title: "Report submitted",
+      text: config.notificationBody,
+    });
+
+    if (!("Notification" in window)) return;
+
+    let permission = Notification.permission;
+
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
+
+    if (permission === "granted") {
+      new Notification("Report Submitted Successfully!", {
+        body: config.notificationBody,
+        icon: "/vite.svg",
+      });
+    }
   };
 
   const compressImage = (file) => {
@@ -199,18 +225,11 @@ function ReportBike({ reportType = "abandoned" }) {
       setGpsLocation(null);
       e.target.reset();
 
-      // Browser notification
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Report Submitted Successfully!", {
-          body: config.notificationBody,
-          icon: "/vite.svg",
-        });
-      }
-
       setMessage({
         type: "success",
         text: config.successText,
       });
+      await showSubmitNotification();
     } catch (error) {
       console.error("Error adding report: ", error);
       setMessage({
@@ -224,6 +243,17 @@ function ReportBike({ reportType = "abandoned" }) {
 
   return (
     <div className="container py-5">
+      {submitNotice && (
+        <div
+          className="position-fixed top-0 end-0 m-4 alert alert-success shadow"
+          role="status"
+          style={{ zIndex: 1080, maxWidth: "360px" }}
+        >
+          <p className="fw-bold mb-1">{submitNotice.title}</p>
+          <p className="mb-0">{submitNotice.text}</p>
+        </div>
+      )}
+
       <div className="portal-card mx-auto" style={{ maxWidth: "860px" }}>
         <div className="mb-4">
           <h1 className="fw-bold mb-3">{config.title}</h1>

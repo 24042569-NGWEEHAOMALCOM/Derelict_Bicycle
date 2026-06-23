@@ -157,7 +157,7 @@ function Resident() {
         <div className="mb-4">
           <h2 className="fw-bold h3">Points Lookup</h2>
           <p className="text-muted fs-5 mb-0">
-            Verified reports earn 10 points and 100 points earns one $5 NTUC voucher.
+            Verified reports earn 10 points and 100 points earns will be entered for $5 NTUC voucher lucky draw.
           </p>
         </div>
 
@@ -205,7 +205,7 @@ function Resident() {
               </div>
               <div className="col-md-6">
                 <div className="border rounded-3 p-3 h-100">
-                  <p className="text-uppercase text-muted small mb-2">Eligible $5 Vouchers</p>
+                  <p className="text-uppercase text-muted small mb-2">Eligible $5 Voucher lucky draw entries</p>
                   <p className="display-6 fw-bold mb-0">{lookupResult.voucherCount}</p>
                 </div>
               </div>

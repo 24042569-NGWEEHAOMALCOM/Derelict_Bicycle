@@ -263,6 +263,11 @@ const getResidentPoints = (items) => {
   return Object.values(residentMap).sort((first, second) => second.points - first.points);
 };
 
+const monthlyDrawThreshold = 100;
+const monthlyDrawWinnerCount = 20;
+const monthlyDrawVoucherValue = 5;
+const monthlyDrawBudget = monthlyDrawWinnerCount * monthlyDrawVoucherValue;
+
 function Staff() {
   const [reports, setReports] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -659,7 +664,7 @@ function Staff() {
           </h2>
 
           <p className="text-muted fs-5 mb-0">
-            Points are tracked per reporter email. Every verified report earns 10 points and 100 points earns one $5 NTUC voucher.
+            Residents with {monthlyDrawThreshold} points are eligible for the monthly lucky draw. {monthlyDrawWinnerCount} winners receive a ${monthlyDrawVoucherValue} NTUC voucher each month.
           </p>
         </div>
 
@@ -675,7 +680,7 @@ function Staff() {
                   <th>Resident</th>
                   <th>Email</th>
                   <th className="text-end">Points</th>
-                  <th className="text-end">Vouchers</th>
+                  <th className="text-end">Monthly Draw</th>
                   <th className="text-end">Reports</th>
                 </tr>
               </thead>
@@ -685,7 +690,9 @@ function Staff() {
                     <td>{resident.reporterName || resident.reporterEmail}</td>
                     <td>{resident.reporterEmail}</td>
                     <td className="text-end fw-bold">{resident.points}</td>
-                    <td className="text-end fw-bold">{Math.floor(resident.points / 100)}</td>
+                    <td className="text-end fw-bold">
+                      {resident.points >= monthlyDrawThreshold ? "Eligible" : "Not yet"}
+                    </td>
                     <td className="text-end fw-bold">{resident.reports}</td>
                   </tr>
                 ))}
