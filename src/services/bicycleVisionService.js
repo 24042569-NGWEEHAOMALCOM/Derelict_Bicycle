@@ -4,13 +4,8 @@ import { ai } from "../firebase/firebase";
 export const BICYCLE_VISION_MODEL =
   import.meta.env.VITE_FIREBASE_AI_MODEL || "gemini-3.5-flash";
 
-const validVerdicts = new Set([
-  "likely_same",
-  "uncertain",
-  "likely_different",
-]);
-
-const comparisonSchema = Schema.object({
+const verdicts = ["likely_same", "uncertain", "likely_different"];
+const responseSchema = Schema.object({
   properties: {
     verdict: Schema.string(),
     matchingFeatures: Schema.array({ items: Schema.string() }),
@@ -19,107 +14,59 @@ const comparisonSchema = Schema.object({
   },
 });
 
-const comparisonModel = getGenerativeModel(ai, {
+const model = getGenerativeModel(ai, {
   model: BICYCLE_VISION_MODEL,
   generationConfig: {
     responseMimeType: "application/json",
-    responseSchema: comparisonSchema,
+    responseSchema,
     temperature: 0.1,
   },
 });
 
-const blobToGenerativePart = (blob) =>
-  new Promise((resolve, reject) => {
+async function imageUrlToPart(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Could not download a bicycle image.");
+
+  const blob = await response.blob();
+  const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
-
-    reader.onloadend = () => {
-      const encodedImage = String(reader.result || "").split(",")[1];
-
-      if (!encodedImage) {
-        reject(new Error("The bicycle image could not be encoded."));
-        return;
-      }
-
-      resolve({
-        inlineData: {
-          data: encodedImage,
-          mimeType: blob.type || "image/jpeg",
-        },
-      });
-    };
-    reader.onerror = () => reject(new Error("The bicycle image could not be read."));
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
 
-const imageUrlToGenerativePart = async (imageUrl) => {
-  const response = await fetch(imageUrl, { mode: "cors" });
+  return {
+    inlineData: {
+      data: dataUrl.split(",")[1],
+      mimeType: blob.type || "image/jpeg",
+    },
+  };
+}
 
-  if (!response.ok) {
-    throw new Error(`Could not download a bicycle image (${response.status}).`);
-  }
+const cleanList = (value) =>
+  Array.isArray(value) ? value.map(String).slice(0, 8) : [];
 
-  const imageBlob = await response.blob();
-
-  if (!imageBlob.type.startsWith("image/")) {
-    throw new Error("A report image URL did not return an image.");
-  }
-
-  return blobToGenerativePart(imageBlob);
-};
-
-const normalizeFeatureList = (features) =>
-  (Array.isArray(features) ? features : [])
-    .filter((feature) => typeof feature === "string" && feature.trim())
-    .slice(0, 8)
-    .map((feature) => feature.trim().slice(0, 240));
-
-export async function compareBicycleImages(referenceImageUrl, candidateImageUrl) {
-  if (!referenceImageUrl || !candidateImageUrl) {
-    throw new Error("Two bicycle images are required for comparison.");
-  }
-
-  const [referenceImage, candidateImage] = await Promise.all([
-    imageUrlToGenerativePart(referenceImageUrl),
-    imageUrlToGenerativePart(candidateImageUrl),
+export async function compareBicycleImages(firstUrl, secondUrl) {
+  const images = await Promise.all([
+    imageUrlToPart(firstUrl),
+    imageUrlToPart(secondUrl),
   ]);
 
-  const prompt = `
-The first image is Bicycle A and the second image is Bicycle B.
-Determine whether they likely show the same individual bicycle.
+  const prompt = `Compare the bicycles in these two images. Ignore the background,
+lighting and camera angle. Compare the frame, colour, wheels, seat, basket,
+locks, stickers, rust, scratches, damage and accessories. Return likely_same
+only when several distinctive details match, likely_different for clear
+conflicts, or uncertain when the images do not show enough detail.`;
 
-Compare only visible, intrinsic details of the bicycles: frame geometry, paint
-and colour patterns, wheels, tyres, seat, basket, racks, locks, stickers,
-licence markings, rust, scratches, dents, missing parts, and accessories.
-Do not treat the background, location, camera angle, image quality, or lighting
-as evidence that the bicycles are the same.
-
-Use "likely_same" only when multiple distinctive features agree and no major
-visible feature conflicts. Use "likely_different" when identifying features
-clearly conflict. Use "uncertain" whenever the photographs do not expose enough
-comparable detail. Never claim certainty about details that are not visible.
-`;
-
-  const result = await comparisonModel.generateContent([
-    prompt,
-    referenceImage,
-    candidateImage,
-  ]);
-  const responseText = result.response.text();
-
-  let comparison;
-
-  try {
-    comparison = JSON.parse(responseText);
-  } catch {
-    throw new Error("The image comparison returned an invalid response.");
-  }
+  const result = await model.generateContent([prompt, ...images]);
+  const comparison = JSON.parse(result.response.text());
 
   return {
-    verdict: validVerdicts.has(comparison.verdict)
+    verdict: verdicts.includes(comparison.verdict)
       ? comparison.verdict
       : "uncertain",
-    matchingFeatures: normalizeFeatureList(comparison.matchingFeatures),
-    conflictingFeatures: normalizeFeatureList(comparison.conflictingFeatures),
-    imageQualityIssues: normalizeFeatureList(comparison.imageQualityIssues),
+    matchingFeatures: cleanList(comparison.matchingFeatures),
+    conflictingFeatures: cleanList(comparison.conflictingFeatures),
+    imageQualityIssues: cleanList(comparison.imageQualityIssues),
   };
 }
