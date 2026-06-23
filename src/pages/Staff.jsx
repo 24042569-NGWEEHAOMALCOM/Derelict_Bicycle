@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { collection, getDocs, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
 import NotificationSystem from "../components/NotificationSystem";
@@ -268,8 +268,49 @@ const monthlyDrawWinnerCount = 20;
 const monthlyDrawVoucherValue = 5;
 const monthlyDrawBudget = monthlyDrawWinnerCount * monthlyDrawVoucherValue;
 
+const getCurrentDrawMonth = () => new Date().toISOString().slice(0, 7);
+
+const getDrawMonthLabel = (monthValue) => {
+  if (!monthValue) return "Current month";
+
+  const [year, month] = monthValue.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+
+  if (Number.isNaN(date.getTime())) return monthValue;
+
+  return date.toLocaleDateString("en-SG", {
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const pickMonthlyWinners = (eligibleResidents) => {
+  const shuffledResidents = eligibleResidents.map((resident) => ({ ...resident }));
+
+  for (let index = shuffledResidents.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffledResidents[index], shuffledResidents[randomIndex]] = [
+      shuffledResidents[randomIndex],
+      shuffledResidents[index],
+    ];
+  }
+
+  return shuffledResidents
+    .slice(0, monthlyDrawWinnerCount)
+    .map((resident, index) => ({
+      rank: index + 1,
+      reporterEmail: resident.reporterEmail,
+      reporterName: resident.reporterName || resident.reporterEmail,
+      points: resident.points,
+      reports: resident.reports,
+      voucherValue: monthlyDrawVoucherValue,
+    }));
+};
+
 function Staff() {
   const [reports, setReports] = useState([]);
+  const [monthlyLuckyDraws, setMonthlyLuckyDraws] = useState([]);
+  const [isRunningDraw, setIsRunningDraw] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
@@ -402,6 +443,27 @@ function Staff() {
       (error) => {
         console.error("Error fetching reports:", error);
         setIsLoading(false);
+      }
+    );
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, "monthlyLuckyDraws"),
+      (querySnapshot) => {
+        const drawList = querySnapshot.docs
+          .map((docItem) => ({
+            id: docItem.id,
+            ...docItem.data(),
+          }))
+          .sort((first, second) => second.id.localeCompare(first.id));
+
+        setMonthlyLuckyDraws(drawList);
+      },
+      (error) => {
+        console.error("Error fetching monthly lucky draws:", error);
       }
     );
 
@@ -567,11 +629,63 @@ function Staff() {
   const topBlocks = getTopCounts(reports, "blockNumber");
   const residentPointSummary = getResidentPoints(reports);
   const topResidentContributors = residentPointSummary.slice(0, 5);
+  const eligibleDrawResidents = residentPointSummary.filter(
+    (resident) => resident.points >= monthlyDrawThreshold
+  );
+  const currentDrawMonth = getCurrentDrawMonth();
+  const currentLuckyDraw = monthlyLuckyDraws.find(
+    (draw) => draw.id === currentDrawMonth
+  );
+  const latestLuckyDraw = currentLuckyDraw || monthlyLuckyDraws[0];
   const topLocations = getTopCounts(reports, "location");
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("All");
+  };
+
+  const runMonthlyLuckyDraw = async () => {
+    if (eligibleDrawResidents.length === 0) {
+      alert("No residents have reached 100 points yet.");
+      return;
+    }
+
+    if (currentLuckyDraw) {
+      const shouldReplace = window.confirm(
+        `${getDrawMonthLabel(currentDrawMonth)} already has saved winners. Run again and replace them?`
+      );
+
+      if (!shouldReplace) return;
+    }
+
+    const winners = pickMonthlyWinners(eligibleDrawResidents);
+    const drawRef = doc(db, "monthlyLuckyDraws", currentDrawMonth);
+    const now = new Date();
+
+    setIsRunningDraw(true);
+
+    try {
+      await setDoc(drawRef, {
+        month: currentDrawMonth,
+        monthLabel: getDrawMonthLabel(currentDrawMonth),
+        createdAt: now,
+        updatedAt: now,
+        threshold: monthlyDrawThreshold,
+        eligibleCount: eligibleDrawResidents.length,
+        winnerCount: winners.length,
+        maxWinners: monthlyDrawWinnerCount,
+        voucherValue: monthlyDrawVoucherValue,
+        monthlyBudget: monthlyDrawBudget,
+        winners,
+      });
+
+      alert(`${winners.length} winner${winners.length === 1 ? "" : "s"} selected for ${getDrawMonthLabel(currentDrawMonth)}.`);
+    } catch (error) {
+      console.error("Error running monthly lucky draw:", error);
+      alert("Could not save the monthly lucky draw. Please try again.");
+    } finally {
+      setIsRunningDraw(false);
+    }
   };
 
   const formatDate = (dateValue) => {
@@ -700,6 +814,96 @@ function Staff() {
             </table>
           </div>
         )}
+
+        <div className="border-top mt-4 pt-4">
+          <div className="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+            <div>
+              <h3 className="h5 fw-bold mb-2">
+                Monthly Lucky Draw
+              </h3>
+
+              <p className="text-muted mb-0">
+                {eligibleDrawResidents.length} resident{eligibleDrawResidents.length === 1 ? "" : "s"} currently eligible for {getDrawMonthLabel(currentDrawMonth)}. The draw selects up to {monthlyDrawWinnerCount} winners.
+              </p>
+            </div>
+
+            <div className="text-lg-end">
+              <button
+                className="btn btn-primary"
+                type="button"
+                onClick={runMonthlyLuckyDraw}
+                disabled={isRunningDraw || eligibleDrawResidents.length === 0}
+              >
+                {isRunningDraw ? "Running Draw..." : currentLuckyDraw ? "Run Again" : "Run Monthly Draw"}
+              </button>
+
+              <p className="text-muted small mt-2 mb-0">
+                Maximum monthly voucher budget: ${monthlyDrawBudget}
+              </p>
+            </div>
+          </div>
+
+          {!latestLuckyDraw ? (
+            <div className="alert alert-secondary mb-0">
+              No monthly lucky draw has been saved yet.
+            </div>
+          ) : (
+            <div>
+              <div className="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+                <div>
+                  <p className="text-uppercase text-muted small mb-1">
+                    {currentLuckyDraw ? "Current Month Winners" : "Latest Saved Winners"}
+                  </p>
+
+                  <h4 className="h6 fw-bold mb-0">
+                    {latestLuckyDraw.monthLabel || getDrawMonthLabel(latestLuckyDraw.month || latestLuckyDraw.id)}
+                  </h4>
+                </div>
+
+                <div className="text-md-end">
+                  <p className="fw-bold mb-1">
+                    {latestLuckyDraw.winnerCount || latestLuckyDraw.winners?.length || 0} winner{(latestLuckyDraw.winnerCount || latestLuckyDraw.winners?.length || 0) === 1 ? "" : "s"}
+                  </p>
+
+                  <p className="text-muted small mb-0">
+                    {latestLuckyDraw.eligibleCount || 0} eligible resident{(latestLuckyDraw.eligibleCount || 0) === 1 ? "" : "s"} at draw time
+                  </p>
+                </div>
+              </div>
+
+              {latestLuckyDraw.winners?.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Winner</th>
+                        <th>Email</th>
+                        <th className="text-end">Points</th>
+                        <th className="text-end">Voucher</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {latestLuckyDraw.winners.map((winner) => (
+                        <tr key={`${latestLuckyDraw.id}-${winner.reporterEmail}`}>
+                          <td>{winner.rank}</td>
+                          <td>{winner.reporterName || winner.reporterEmail}</td>
+                          <td>{winner.reporterEmail}</td>
+                          <td className="text-end fw-bold">{winner.points}</td>
+                          <td className="text-end fw-bold">${winner.voucherValue || monthlyDrawVoucherValue}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="alert alert-secondary mb-0">
+                  This saved draw has no winners.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="portal-card mb-5" style={{ minHeight: "auto" }}>
