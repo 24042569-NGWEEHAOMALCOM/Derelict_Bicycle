@@ -212,6 +212,12 @@ function ReportBike({ reportType = "abandoned" }) {
       await addDoc(collection(db, "reports"), {
         ...report,
         imageUrl,
+        duplicateDetection: {
+          status: selectedImage ? "not_checked" : "not_applicable",
+          provider: "firebase-ai-logic",
+          matches: [],
+          checkedAt: null,
+        },
         status: "Reported",
         read: false,
         pointsEarned: 0,

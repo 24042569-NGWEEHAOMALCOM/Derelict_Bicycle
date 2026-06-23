@@ -5,6 +5,10 @@ import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
 import NotificationSystem from "../components/NotificationSystem";
 import MapDisplay from "../components/MapDisplay";
+import {
+  BICYCLE_VISION_MODEL,
+  compareBicycleImages,
+} from "../services/bicycleVisionService";
 
 const statusOptions = [
   "All",
@@ -155,43 +159,17 @@ const isClosedStatus = (status) =>
 
 const isUnreadReport = (report) => report?.read === false;
 
-const cleanText = (value) => String(value || "").trim().toLowerCase();
+const duplicateComparisonLimit = 10;
 
-const getPossibleDuplicateReports = (selectedReport, reportList) => {
-  if (!selectedReport) return [];
+const getReportCreatedTime = (report) =>
+  report?.createdAt?.toMillis?.() ||
+  (report?.createdAt?.seconds ? report.createdAt.seconds * 1000 : 0);
 
-  const same = (firstValue, secondValue) =>
-    cleanText(firstValue) === cleanText(secondValue);
-  const words = cleanText(selectedReport.description)
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/);
-  const plate = cleanText(selectedReport.licensePlate);
+const getDuplicateVerdictLabel = (verdict) =>
+  verdict === "likely_same" ? "Likely same" : "Uncertain";
 
-  return reportList
-    .filter(
-      (report) =>
-        report.id !== selectedReport.id &&
-        report.caseType === selectedReport.caseType &&
-        same(report.blockNumber, selectedReport.blockNumber) &&
-        same(report.location, selectedReport.location)
-    )
-    .map((report) => ({
-      report,
-      reasons: [
-        "same case type",
-        "same block and postal code",
-        ...(words.some(
-          (word) => word.length > 2 && cleanText(report.description).includes(word)
-        )
-          ? ["similar description"]
-          : []),
-        ...(plate && same(plate, report.licensePlate)
-          ? ["same license plate"]
-          : []),
-      ],
-    }))
-    .slice(0, 5);
-};
+const getDuplicateVerdictClass = (verdict) =>
+  verdict === "likely_same" ? "bg-danger" : "bg-warning text-dark";
 
 const seenReportsStorageKey = "staffSeenReportIds";
 
@@ -314,6 +292,8 @@ function Staff() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateCheckMessage, setDuplicateCheckMessage] = useState(null);
   const [selectedReportId, setSelectedReportId] = useState("");
   const location = useLocation();
   const listRefs = useRef({});
@@ -592,7 +572,106 @@ function Staff() {
   const hasResidentResponse =
     hasClaimResponse || hasNotAbandonedResponse || hasAcknowledgementResponse;
   const availableStatusActions = getStatusActions(selectedReport);
-  const possibleDuplicateReports = getPossibleDuplicateReports(selectedReport, reports);
+  const aiDuplicateReports = (selectedReport?.duplicateDetection?.matches || [])
+    .map((match) => ({
+      ...match,
+      report: reports.find((report) => report.id === match.reportId),
+    }))
+    .filter((match) => match.report);
+
+  const handleCheckImageDuplicates = async () => {
+    if (!selectedReport?.imageUrl) {
+      setDuplicateCheckMessage({
+        type: "warning",
+        text: "This report does not have an image to compare.",
+      });
+      return;
+    }
+
+    const reportBeingChecked = selectedReport;
+    const eligibleReports = reports
+      .filter(
+        (report) =>
+          report.id !== reportBeingChecked.id &&
+          report.caseType === reportBeingChecked.caseType &&
+          report.imageUrl
+      )
+      .sort(
+        (first, second) =>
+          Number(isClosedStatus(first.status)) -
+            Number(isClosedStatus(second.status)) ||
+          getReportCreatedTime(second) - getReportCreatedTime(first)
+      );
+    const candidateReports = eligibleReports.slice(0, duplicateComparisonLimit);
+
+    setIsCheckingDuplicates(true);
+    setDuplicateCheckMessage(null);
+
+    try {
+      const matches = [];
+      let failureCount = 0;
+
+      for (const candidateReport of candidateReports) {
+        try {
+          const comparison = await compareBicycleImages(
+            reportBeingChecked.imageUrl,
+            candidateReport.imageUrl
+          );
+
+          if (comparison.verdict !== "likely_different") {
+            matches.push({
+              reportId: candidateReport.id,
+              ...comparison,
+            });
+          }
+        } catch (error) {
+          failureCount += 1;
+          console.error(
+            `Could not compare report ${candidateReport.id}:`,
+            error
+          );
+        }
+      }
+
+      const allComparisonsFailed =
+        candidateReports.length > 0 && failureCount === candidateReports.length;
+      const duplicateDetection = {
+        status: allComparisonsFailed ? "failed" : "checked",
+        provider: "firebase-ai-logic",
+        model: BICYCLE_VISION_MODEL,
+        checkedAt: new Date(),
+        eligibleCount: eligibleReports.length,
+        comparedCount: candidateReports.length - failureCount,
+        skippedCount: Math.max(
+          0,
+          eligibleReports.length - candidateReports.length
+        ),
+        failureCount,
+        matches,
+      };
+
+      await updateDoc(doc(db, "reports", reportBeingChecked.id), {
+        duplicateDetection,
+        updatedAt: new Date(),
+      });
+
+      setDuplicateCheckMessage({
+        type: allComparisonsFailed ? "danger" : "success",
+        text: allComparisonsFailed
+          ? "Image comparison failed. Check Firebase AI Logic setup, App Check, and the free-tier quota before trying again."
+          : `Compared ${duplicateDetection.comparedCount} report${duplicateDetection.comparedCount === 1 ? "" : "s"} and flagged ${matches.length} for staff review.`,
+      });
+    } catch (error) {
+      console.error("Error checking duplicate bicycle images:", error);
+      setDuplicateCheckMessage({
+        type: "danger",
+        text: "The duplicate check could not be saved. Please try again.",
+      });
+    } finally {
+      setIsCheckingDuplicates(false);
+    }
+  };
+
   const statusCounts = statusOptions
     .filter((status) => status !== "All")
     .map((status) => ({
@@ -1316,23 +1395,66 @@ function Staff() {
                             </h3>
 
                             <p className="text-muted mb-0">
-                              Matched using case type, block and postal code,
-                              description, and license plate.
+                              Gemini compares the bicycle image with up to {duplicateComparisonLimit}{" "}
+                              recent reports of the same case type. Staff must
+                              confirm every result.
                             </p>
                           </div>
 
-                          <span className="badge bg-light text-dark">
-                            {possibleDuplicateReports.length} matches
-                          </span>
+                          <div className="d-flex align-items-center gap-2">
+                            <span className="badge bg-light text-dark">
+                              {aiDuplicateReports.length} flagged
+                            </span>
+
+                            <button
+                              className="btn btn-primary btn-sm"
+                              type="button"
+                              disabled={!selectedReport.imageUrl || isCheckingDuplicates}
+                              onClick={handleCheckImageDuplicates}
+                            >
+                              {isCheckingDuplicates
+                                ? "Checking images..."
+                                : selectedReport.duplicateDetection?.status === "checked"
+                                  ? "Run Check Again"
+                                  : "Check Image Duplicates"}
+                            </button>
+                          </div>
                         </div>
 
-                        {possibleDuplicateReports.length === 0 ? (
+                        {duplicateCheckMessage && (
+                          <div
+                            className={`alert alert-${duplicateCheckMessage.type}`}
+                            role="alert"
+                          >
+                            {duplicateCheckMessage.text}
+                          </div>
+                        )}
+
+                        {!selectedReport.imageUrl ? (
                           <div className="alert alert-secondary mb-0">
-                            No likely duplicate reports found.
+                            This report has no image, so visual duplicate checking
+                            is unavailable.
+                          </div>
+                        ) : selectedReport.duplicateDetection?.status === "failed" &&
+                          !duplicateCheckMessage ? (
+                          <div className="alert alert-danger mb-0">
+                            The previous image comparison failed. Check Firebase AI
+                            Logic, App Check, and the available free-tier quota.
+                          </div>
+                        ) : selectedReport.duplicateDetection?.status !== "checked" &&
+                          aiDuplicateReports.length === 0 ? (
+                          <div className="alert alert-secondary mb-0">
+                            This report has not been checked by Gemini yet.
+                          </div>
+                        ) : aiDuplicateReports.length === 0 ? (
+                          <div className="alert alert-success mb-0">
+                            No visually similar bicycles were flagged after comparing{" "}
+                            {selectedReport.duplicateDetection?.comparedCount || 0}{" "}
+                            report(s).
                           </div>
                         ) : (
                           <div className="vstack gap-3">
-                            {possibleDuplicateReports.map((match) => (
+                            {aiDuplicateReports.map((match) => (
                               <div
                                 className="duplicate-report-match border rounded-3 p-3"
                                 key={match.report.id}
@@ -1347,6 +1469,12 @@ function Staff() {
                                       <span className={`badge ${getBadgeClass(match.report.status)}`}>
                                         {getDisplayStatus(match.report.status) || "Unknown"}
                                       </span>
+
+                                      <span
+                                        className={`badge ${getDuplicateVerdictClass(match.verdict)}`}
+                                      >
+                                        {getDuplicateVerdictLabel(match.verdict)}
+                                      </span>
                                     </div>
 
                                     <p className="mb-1">
@@ -1358,19 +1486,49 @@ function Staff() {
                                       Submitted {formatDate(match.report.createdAt)}
                                     </p>
 
-                                    <div className="d-flex flex-wrap gap-2">
-                                      {match.reasons.map((reason) => (
-                                        <span
-                                          className="badge bg-light text-dark border"
-                                          key={`${match.report.id}-${reason}`}
-                                        >
-                                          {reason}
-                                        </span>
-                                      ))}
-                                    </div>
+                                    {match.matchingFeatures?.length > 0 && (
+                                      <div className="mb-2">
+                                        <p className="small fw-semibold mb-1">
+                                          Matching visible features
+                                        </p>
+                                        <ul className="small mb-0 ps-3">
+                                          {match.matchingFeatures.map((feature, index) => (
+                                            <li key={`${match.report.id}-match-${index}`}>
+                                              {feature}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+
+                                    {match.conflictingFeatures?.length > 0 && (
+                                      <div>
+                                        <p className="small fw-semibold mb-1">
+                                          Conflicting visible features
+                                        </p>
+                                        <ul className="small mb-0 ps-3">
+                                          {match.conflictingFeatures.map((feature, index) => (
+                                            <li key={`${match.report.id}-conflict-${index}`}>
+                                              {feature}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
                                   </div>
 
                                   <div className="text-md-end">
+                                    <img
+                                      className="d-block rounded border mb-2 ms-md-auto"
+                                      src={match.report.imageUrl}
+                                      alt={`Bicycle in possible duplicate report ${match.report.id}`}
+                                      style={{
+                                        width: "112px",
+                                        height: "84px",
+                                        objectFit: "cover",
+                                      }}
+                                    />
+
                                     <button
                                       className="btn btn-outline-primary btn-sm"
                                       type="button"
@@ -1382,6 +1540,15 @@ function Staff() {
                                 </div>
                               </div>
                             ))}
+
+                            {selectedReport.duplicateDetection?.checkedAt && (
+                              <p className="text-muted small mb-0">
+                                Last checked {formatDate(selectedReport.duplicateDetection.checkedAt)}
+                                {selectedReport.duplicateDetection.skippedCount > 0
+                                  ? ` · ${selectedReport.duplicateDetection.skippedCount} older candidate(s) skipped to preserve the free quota.`
+                                  : ""}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
