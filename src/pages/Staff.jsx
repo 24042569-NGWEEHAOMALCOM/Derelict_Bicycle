@@ -302,6 +302,7 @@ function Staff() {
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [duplicateCheckMessage, setDuplicateCheckMessage] = useState(null);
   const [selectedReportId, setSelectedReportId] = useState("");
+  const [selectedDrawMonth, setSelectedDrawMonth] = useState("");
   const location = useLocation();
   const listRefs = useRef({});
   const detailsRef = useRef(null);
@@ -448,6 +449,9 @@ function Staff() {
           .sort((first, second) => second.id.localeCompare(first.id));
 
         setMonthlyLuckyDraws(drawList);
+        if (!selectedDrawMonth) {
+          setSelectedDrawMonth(drawList[0]?.id || "");
+        }
       },
       (error) => {
         console.error("Error fetching monthly lucky draws:", error);
@@ -455,7 +459,7 @@ function Staff() {
     );
 
     return unsubscribe;
-  }, []);
+  }, [selectedDrawMonth]);
 
   // If a `report` query parameter is present, auto-select that report
   useEffect(() => {
@@ -723,6 +727,9 @@ function Staff() {
     (draw) => draw.id === currentDrawMonth
   );
   const latestLuckyDraw = currentLuckyDraw || monthlyLuckyDraws[0];
+  const displayedLuckyDraw = monthlyLuckyDraws.find(
+    (draw) => draw.id === selectedDrawMonth
+  ) || latestLuckyDraw;
   const topLocations = getTopCounts(reports, "location");
 
   const clearFilters = () => {
@@ -979,7 +986,7 @@ function Staff() {
             </div>
           </div>
 
-          {!latestLuckyDraw ? (
+          {!monthlyLuckyDraws.length ? (
             <div className="alert alert-secondary mb-0">
               No monthly lucky draw has been saved yet.
             </div>
@@ -988,49 +995,77 @@ function Staff() {
               <div className="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
                 <div>
                   <p className="text-uppercase text-muted small mb-1">
-                    {currentLuckyDraw ? "Current Month Winners" : "Latest Saved Winners"}
+                    {displayedLuckyDraw?.id === currentDrawMonth ? "Current Month Winners" : "Saved Winners"}
                   </p>
 
                   <h4 className="h6 fw-bold mb-0">
-                    {latestLuckyDraw.monthLabel || getDrawMonthLabel(latestLuckyDraw.month || latestLuckyDraw.id)}
+                    {displayedLuckyDraw?.monthLabel || getDrawMonthLabel(displayedLuckyDraw?.month || displayedLuckyDraw?.id)}
                   </h4>
                 </div>
 
                 <div className="text-md-end">
-                  <p className="fw-bold mb-1">
-                    {latestLuckyDraw.winnerCount || latestLuckyDraw.winners?.length || 0} winner{(latestLuckyDraw.winnerCount || latestLuckyDraw.winners?.length || 0) === 1 ? "" : "s"}
-                  </p>
-
-                  <p className="text-muted small mb-0">
-                    {latestLuckyDraw.eligibleCount || 0} eligible resident{(latestLuckyDraw.eligibleCount || 0) === 1 ? "" : "s"} at draw time
-                  </p>
+                  <label className="form-label small mb-1" htmlFor="drawMonthSelect">
+                    View month
+                  </label>
+                  <select
+                    id="drawMonthSelect"
+                    className="form-select form-select-sm"
+                    value={selectedDrawMonth || displayedLuckyDraw?.id || ""}
+                    onChange={(event) => setSelectedDrawMonth(event.target.value)}
+                  >
+                    {monthlyLuckyDraws.map((draw) => (
+                      <option key={draw.id} value={draw.id}>
+                        {draw.monthLabel || getDrawMonthLabel(draw.month || draw.id)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {latestLuckyDraw.winners?.length > 0 ? (
-                <div className="table-responsive">
-                  <table className="table table-sm align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Winner</th>
-                        <th>Email</th>
-                        <th className="text-end">Points</th>
-                        <th className="text-end">Voucher</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {latestLuckyDraw.winners.map((winner) => (
-                        <tr key={`${latestLuckyDraw.id}-${winner.reporterEmail}`}>
-                          <td>{winner.rank}</td>
-                          <td>{winner.reporterName || winner.reporterEmail}</td>
-                          <td>{winner.reporterEmail}</td>
-                          <td className="text-end fw-bold">{winner.points}</td>
-                          <td className="text-end fw-bold">${winner.voucherValue || monthlyDrawVoucherValue}</td>
+              {!displayedLuckyDraw ? (
+                <div className="alert alert-secondary mb-0">
+                  No monthly lucky draw is available for this selection.
+                </div>
+              ) : displayedLuckyDraw.winners?.length > 0 ? (
+                <div>
+                  <div className="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+                    <div>
+                      <p className="fw-bold mb-1">
+                        {displayedLuckyDraw.winnerCount || displayedLuckyDraw.winners?.length || 0} winner{(displayedLuckyDraw.winnerCount || displayedLuckyDraw.winners?.length || 0) === 1 ? "" : "s"}
+                      </p>
+                    </div>
+
+                    <div className="text-md-end">
+                      <p className="text-muted small mb-0">
+                        {displayedLuckyDraw.eligibleCount || 0} eligible resident{(displayedLuckyDraw.eligibleCount || 0) === 1 ? "" : "s"} at draw time
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="table-responsive">
+                    <table className="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Winner</th>
+                          <th>Email</th>
+                          <th className="text-end">Points</th>
+                          <th className="text-end">Voucher</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {displayedLuckyDraw.winners.map((winner) => (
+                          <tr key={`${displayedLuckyDraw.id}-${winner.reporterEmail}`}>
+                            <td>{winner.rank}</td>
+                            <td>{winner.reporterName || winner.reporterEmail}</td>
+                            <td>{winner.reporterEmail}</td>
+                            <td className="text-end fw-bold">{winner.points}</td>
+                            <td className="text-end fw-bold">${winner.voucherValue || monthlyDrawVoucherValue}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : (
                 <div className="alert alert-secondary mb-0">
