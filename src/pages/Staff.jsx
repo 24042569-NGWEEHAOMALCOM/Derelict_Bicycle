@@ -213,6 +213,9 @@ const getTopCounts = (items, fieldName, limit = 5) => {
     .slice(0, limit);
 };
 
+const getReportPointBalance = (report) =>
+  Math.max(0, (report.pointsEarned || 0) - (report.luckyDrawDeductedPoints || 0));
+
 const getResidentPoints = (items) => {
   const residentMap = items.reduce((current, report) => {
     const email = report.reporterEmail?.trim().toLowerCase();
@@ -232,7 +235,7 @@ const getResidentPoints = (items) => {
       [email]: {
         ...existing,
         reporterName: existing.reporterName || name || email,
-        points: existing.points + (report.pointsEarned || 0),
+        points: existing.points + getReportPointBalance(report),
         reports: existing.reports + 1,
       },
     };
@@ -245,6 +248,9 @@ const monthlyDrawThreshold = 100;
 const monthlyDrawWinnerCount = 20;
 const monthlyDrawVoucherValue = 5;
 const monthlyDrawBudget = monthlyDrawWinnerCount * monthlyDrawVoucherValue;
+
+const getDeductionAmountForResident = (residentPoints) =>
+  Math.max(0, Math.floor(residentPoints / monthlyDrawThreshold) * monthlyDrawThreshold);
 
 const getCurrentDrawMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -279,7 +285,8 @@ const pickMonthlyWinners = (eligibleResidents) => {
       rank: index + 1,
       reporterEmail: resident.reporterEmail,
       reporterName: resident.reporterName || resident.reporterEmail,
-      points: resident.points,
+      points: getDeductionAmountForResident(resident.points),
+      totalPoints: resident.points,
       reports: resident.reports,
       voucherValue: monthlyDrawVoucherValue,
     }));
@@ -744,6 +751,46 @@ function Staff() {
     setIsRunningDraw(true);
 
     try {
+      const deductionPromises = eligibleDrawResidents.flatMap((resident) => {
+        const pointsToDeduct = getDeductionAmountForResident(resident.points);
+
+        if (pointsToDeduct <= 0) return [];
+
+        let remainingPointsToDeduct = pointsToDeduct;
+        const residentReports = reports
+          .filter(
+            (report) =>
+              report.reporterEmail?.trim().toLowerCase() === resident.reporterEmail
+          )
+          .sort(
+            (firstReport, secondReport) =>
+              getReportCreatedTime(firstReport) - getReportCreatedTime(secondReport)
+          );
+
+        return residentReports.flatMap((report) => {
+          if (remainingPointsToDeduct <= 0) return [];
+
+          const availablePoints = getReportPointBalance(report);
+          if (availablePoints <= 0) return [];
+
+          const deductionForThisReport = Math.min(
+            availablePoints,
+            remainingPointsToDeduct
+          );
+
+          remainingPointsToDeduct -= deductionForThisReport;
+
+          return [
+            updateDoc(doc(db, "reports", report.id), {
+              luckyDrawDeductedPoints:
+                (report.luckyDrawDeductedPoints || 0) + deductionForThisReport,
+            }),
+          ];
+        });
+      });
+
+      await Promise.all(deductionPromises);
+
       await setDoc(drawRef, {
         month: currentDrawMonth,
         monthLabel: getDrawMonthLabel(currentDrawMonth),

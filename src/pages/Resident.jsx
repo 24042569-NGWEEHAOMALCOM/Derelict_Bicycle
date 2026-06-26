@@ -3,6 +3,9 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { Link } from "react-router-dom";
 
+const getReportPointBalance = (report) =>
+  Math.max(0, (report.pointsEarned || 0) - (report.luckyDrawDeductedPoints || 0));
+
 function Resident() {
   const [lookupEmail, setLookupEmail] = useState("");
   const [lookupResult, setLookupResult] = useState(null);
@@ -49,7 +52,7 @@ function Resident() {
       }));
 
       const totalPoints = residentReports.reduce(
-        (sum, report) => sum + (report.pointsEarned || 0),
+        (sum, report) => sum + getReportPointBalance(report),
         0
       );
 
