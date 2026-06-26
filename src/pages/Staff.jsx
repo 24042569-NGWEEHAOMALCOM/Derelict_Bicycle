@@ -250,7 +250,7 @@ const monthlyDrawVoucherValue = 5;
 const monthlyDrawBudget = monthlyDrawWinnerCount * monthlyDrawVoucherValue;
 
 const getDeductionAmountForResident = (residentPoints) =>
-  Math.max(0, Math.floor(residentPoints / monthlyDrawThreshold) * monthlyDrawThreshold);
+  residentPoints >= monthlyDrawThreshold ? monthlyDrawThreshold : 0;
 
 const getCurrentDrawMonth = () => new Date().toISOString().slice(0, 7);
 
@@ -730,28 +730,30 @@ function Staff() {
     setStatusFilter("All");
   };
 
-  const runMonthlyLuckyDraw = async () => {
-    if (eligibleDrawResidents.length === 0) {
+  const runLuckyDrawForMonth = async (monthValue, monthLabel, eligibleResidents) => {
+    if (eligibleResidents.length === 0) {
       alert("No residents have reached 100 points yet.");
       return;
     }
 
-    if (currentLuckyDraw) {
+    const existingDraw = monthlyLuckyDraws.find((draw) => draw.id === monthValue);
+
+    if (existingDraw) {
       const shouldReplace = window.confirm(
-        `${getDrawMonthLabel(currentDrawMonth)} already has saved winners. Run again and replace them?`
+        `${monthLabel} already has saved winners. Run again and replace them?`
       );
 
       if (!shouldReplace) return;
     }
 
-    const winners = pickMonthlyWinners(eligibleDrawResidents);
-    const drawRef = doc(db, "monthlyLuckyDraws", currentDrawMonth);
+    const winners = pickMonthlyWinners(eligibleResidents);
+    const drawRef = doc(db, "monthlyLuckyDraws", monthValue);
     const now = new Date();
 
     setIsRunningDraw(true);
 
     try {
-      const deductionPromises = eligibleDrawResidents.flatMap((resident) => {
+      const deductionPromises = eligibleResidents.flatMap((resident) => {
         const pointsToDeduct = getDeductionAmountForResident(resident.points);
 
         if (pointsToDeduct <= 0) return [];
@@ -792,12 +794,12 @@ function Staff() {
       await Promise.all(deductionPromises);
 
       await setDoc(drawRef, {
-        month: currentDrawMonth,
-        monthLabel: getDrawMonthLabel(currentDrawMonth),
+        month: monthValue,
+        monthLabel,
         createdAt: now,
         updatedAt: now,
         threshold: monthlyDrawThreshold,
-        eligibleCount: eligibleDrawResidents.length,
+        eligibleCount: eligibleResidents.length,
         winnerCount: winners.length,
         maxWinners: monthlyDrawWinnerCount,
         voucherValue: monthlyDrawVoucherValue,
@@ -805,13 +807,21 @@ function Staff() {
         winners,
       });
 
-      alert(`${winners.length} winner${winners.length === 1 ? "" : "s"} selected for ${getDrawMonthLabel(currentDrawMonth)}.`);
+      alert(`${winners.length} winner${winners.length === 1 ? "" : "s"} selected for ${monthLabel}.`);
     } catch (error) {
       console.error("Error running monthly lucky draw:", error);
       alert("Could not save the monthly lucky draw. Please try again.");
     } finally {
       setIsRunningDraw(false);
     }
+  };
+
+  const runMonthlyLuckyDraw = async () => {
+    await runLuckyDrawForMonth(
+      currentDrawMonth,
+      getDrawMonthLabel(currentDrawMonth),
+      eligibleDrawResidents
+    );
   };
 
   const formatDate = (dateValue) => {
