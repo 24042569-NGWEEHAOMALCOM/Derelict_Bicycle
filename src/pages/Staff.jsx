@@ -588,7 +588,7 @@ function Staff() {
       ...match,
       report: reports.find((report) => report.id === match.reportId),
     }))
-    .filter((match) => match.report);
+    .filter((match) => match.report && !isClosedStatus(match.report.status));
 
   const handleCheckImageDuplicates = async () => {
     if (!selectedReport?.imageUrl) {
@@ -605,12 +605,11 @@ function Staff() {
         (report) =>
           report.id !== reportBeingChecked.id &&
           report.caseType === reportBeingChecked.caseType &&
-          report.imageUrl
+          report.imageUrl &&
+          !isClosedStatus(report.status)
       )
       .sort(
         (first, second) =>
-          Number(isClosedStatus(first.status)) -
-            Number(isClosedStatus(second.status)) ||
           getReportCreatedTime(second) - getReportCreatedTime(first)
       );
     const candidateReports = eligibleReports.slice(0, duplicateComparisonLimit);
@@ -1488,8 +1487,8 @@ function Staff() {
 
                             <p className="text-muted mb-0">
                               Gemini compares the bicycle image with up to {duplicateComparisonLimit}{" "}
-                              recent reports of the same case type. Staff must
-                              confirm every result.
+                              recent open reports of the same case type. Staff
+                              must confirm every result.
                             </p>
                           </div>
 
@@ -1513,7 +1512,7 @@ function Staff() {
                           </div>
                         </div>
 
-                        {duplicateCheckMessage && (
+                        {duplicateCheckMessage?.type !== "success" && duplicateCheckMessage && (
                           <div
                             className={`alert alert-${duplicateCheckMessage.type}`}
                             role="alert"
@@ -1540,9 +1539,7 @@ function Staff() {
                           </div>
                         ) : aiDuplicateReports.length === 0 ? (
                           <div className="alert alert-success mb-0">
-                            No visually similar bicycles were flagged after comparing{" "}
-                            {selectedReport.duplicateDetection?.comparedCount || 0}{" "}
-                            report(s).
+                            No visually similar bicycles were flagged.
                           </div>
                         ) : (
                           <div className="vstack gap-3">
