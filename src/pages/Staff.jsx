@@ -157,6 +157,9 @@ const getStatusActions = (report) => {
 const isClosedStatus = (status) =>
   status === "Closed" || status?.startsWith("Closed -");
 
+const normalizePhoneNumber = (phoneNumber = "") =>
+  String(phoneNumber).replace(/\D/g, "").replace(/^65(?=\d{8}$)/, "");
+
 const isUnreadReport = (report) => report?.read === false;
 
 const duplicateComparisonLimit = 10;
@@ -164,6 +167,62 @@ const duplicateComparisonLimit = 10;
 const getReportCreatedTime = (report) =>
   report?.createdAt?.toMillis?.() ||
   (report?.createdAt?.seconds ? report.createdAt.seconds * 1000 : 0);
+
+const getLatestResponse = (report) => {
+  if (!Array.isArray(report?.responseHistory) || report.responseHistory.length === 0) {
+    return null;
+  }
+
+  return report.responseHistory[report.responseHistory.length - 1];
+};
+
+const getReportAcknowledgementPhone = (report) => {
+  const latestResponse = getLatestResponse(report);
+
+  return normalizePhoneNumber(
+    report?.acknowledgementPhoneNormalized ||
+      report?.acknowledgementPhone ||
+      latestResponse?.phoneNormalized ||
+      latestResponse?.phone
+  );
+};
+
+const getLinkedFirstWarningReport = (report, allReports) => {
+  if (
+    !report ||
+    !isImproperParkingReport(report) ||
+    getDisplayStatus(report.status) !== secondWarningStatus
+  ) {
+    return null;
+  }
+
+  const linkedReportId =
+    report.linkedFirstWarningReportId ||
+    getLatestResponse(report)?.linkedFirstWarningReportId;
+  const linkedReport = allReports.find(
+    (candidateReport) => candidateReport.id === linkedReportId
+  );
+
+  if (linkedReport) return linkedReport;
+
+  const acknowledgementPhone = getReportAcknowledgementPhone(report);
+  if (!acknowledgementPhone) return null;
+
+  return (
+    allReports
+      .filter(
+        (candidateReport) =>
+          candidateReport.id !== report.id &&
+          isImproperParkingReport(candidateReport) &&
+          getDisplayStatus(candidateReport.status) === firstWarningStatus &&
+          getReportAcknowledgementPhone(candidateReport) === acknowledgementPhone
+      )
+      .sort(
+        (first, second) =>
+          getReportCreatedTime(second) - getReportCreatedTime(first)
+      )[0] || null
+  );
+};
 
 const getDuplicateVerdictLabel = (verdict) =>
   verdict === "likely_same" ? "Likely same" : "Uncertain";
@@ -570,6 +629,10 @@ function Staff() {
   });
 
   const selectedReport = reports.find((report) => report.id === selectedReportId);
+  const selectedLinkedFirstWarningReport = getLinkedFirstWarningReport(
+    selectedReport,
+    reports
+  );
   const unreadCount = reports.filter(isUnreadReport).length;
   const hasClaimResponse =
     selectedReport?.claimName ||
@@ -1286,6 +1349,10 @@ function Staff() {
               <div className="list-group">
                 {filteredReports.map((report) => {
                   const isUnread = isUnreadReport(report);
+                  const linkedFirstWarningReport = getLinkedFirstWarningReport(
+                    report,
+                    reports
+                  );
 
                   return (
                     <button
@@ -1326,6 +1393,12 @@ function Staff() {
                           {report.bicycleType && (
                             <p className="small mb-0 mt-1 text-muted">
                               {report.condition || 'Unknown condition'}
+                            </p>
+                          )}
+
+                          {linkedFirstWarningReport && (
+                            <p className="small mb-0 mt-1 text-muted">
+                              Linked 1st warning: {linkedFirstWarningReport.id}
                             </p>
                           )}
                         </div>
@@ -1757,6 +1830,32 @@ function Staff() {
                                   {selectedReport.warningLevel || "Warning recorded"}
                                 </span>
                               </div>
+
+                              {selectedLinkedFirstWarningReport && (
+                                <div className="alert alert-info d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+                                  <div>
+                                    <p className="fw-semibold mb-1">
+                                      Linked 1st warning report
+                                    </p>
+
+                                    <p className="mb-0">
+                                      {selectedLinkedFirstWarningReport.id}
+                                    </p>
+                                  </div>
+
+                                  <button
+                                    className="btn btn-outline-primary btn-sm"
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedReportId(
+                                        selectedLinkedFirstWarningReport.id
+                                      )
+                                    }
+                                  >
+                                    View Linked Report
+                                  </button>
+                                </div>
+                              )}
 
                               {selectedReport.enforcementReviewRequired && (
                                 <div className="alert alert-danger">

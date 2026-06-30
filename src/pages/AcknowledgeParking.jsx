@@ -147,7 +147,10 @@ function AcknowledgeParking() {
 
     responseSnapshots.forEach((responseSnapshot) => {
       responseSnapshot.docs.forEach((docItem) => {
-        responseMap.set(docItem.id, docItem.data());
+        responseMap.set(docItem.id, {
+          id: docItem.id,
+          ...docItem.data(),
+        });
       });
     });
 
@@ -160,20 +163,36 @@ function AcknowledgeParking() {
 
       if (responseReport.responseHistory?.length > 0) {
         priorWarnings.push(
-          ...responseReport.responseHistory.filter((response) => {
-            const responsePhone = response.phoneNormalized || response.phone || "";
+          ...responseReport.responseHistory
+            .filter((response) => {
+              const responsePhone = response.phoneNormalized || response.phone || "";
 
-            return normalizePhoneNumber(responsePhone) === normalizedPhone;
-          })
+              return normalizePhoneNumber(responsePhone) === normalizedPhone;
+            })
+            .map((response) => ({
+              ...response,
+              reportId: responseReport.id,
+              reportCreatedAt: responseReport.createdAt,
+            }))
         );
         return;
       }
 
-      priorWarnings.push(responseReport);
+      priorWarnings.push({
+        ...responseReport,
+        reportId: responseReport.id,
+      });
     });
+
+    const firstWarningReport =
+      priorWarnings.find(
+        (priorWarning) =>
+          Number(priorWarning.warningNumber) === 1 && priorWarning.reportId
+      ) || priorWarnings.find((priorWarning) => priorWarning.reportId);
 
     return {
       priorOffenceCount: priorWarnings.length,
+      firstWarningReportId: firstWarningReport?.reportId || "",
     };
   };
 
@@ -245,6 +264,8 @@ function AcknowledgeParking() {
         2
       );
       const warningLabel = getWarningLabel(warningNumber);
+      const linkedFirstWarningReportId =
+        warningNumber >= 2 ? priorWarningState.firstWarningReportId : "";
       const responseEntry = {
         name: trimmedName,
         phone: trimmedPhone,
@@ -254,6 +275,7 @@ function AcknowledgeParking() {
         warningLevel: warningLabel,
         warningNumber,
         submittedAt: new Date().toISOString(),
+        ...(linkedFirstWarningReportId ? { linkedFirstWarningReportId } : {}),
       };
       const responseHistory = [
         ...(report.responseHistory || []),
@@ -271,6 +293,7 @@ function AcknowledgeParking() {
         warningLevel: warningLabel,
         warningNumber,
         responseHistory,
+        ...(linkedFirstWarningReportId ? { linkedFirstWarningReportId } : {}),
         updatedAt: serverTimestamp(),
       });
 
