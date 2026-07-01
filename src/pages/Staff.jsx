@@ -235,7 +235,7 @@ const seenReportsStorageKey = "staffSeenReportIds";
 const getStoredSeenReportIds = () => {
   try {
     return new Set(JSON.parse(localStorage.getItem(seenReportsStorageKey) || "[]"));
-  } catch (error) {
+  } catch {
     return new Set();
   }
 };
@@ -526,9 +526,11 @@ function Staff() {
       const params = new URLSearchParams(location.search);
       const reportId = params.get("report");
       if (reportId) {
-        setSelectedReportId(reportId);
+        window.setTimeout(() => {
+          setSelectedReportId(reportId);
+        }, 0);
       }
-    } catch (err) {
+    } catch {
       // ignore
     }
   }, [location.search]);
@@ -582,7 +584,7 @@ function Staff() {
       try {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.focus && el.focus();
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -591,7 +593,7 @@ function Staff() {
     if (detailsRef.current && detailsRef.current.scrollIntoView) {
       try {
         detailsRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      } catch (err) {
+      } catch {
         // ignore
       }
     }
@@ -797,6 +799,18 @@ function Staff() {
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("All");
+  };
+
+  const filterBySearchTerm = (term) => {
+    setSearchTerm(term);
+    setStatusFilter("All");
+    setSelectedReportId("");
+  };
+
+  const filterByStatus = (status) => {
+    setSearchTerm("");
+    setStatusFilter(status);
+    setSelectedReportId("");
   };
 
   const runLuckyDrawForMonth = async (monthValue, monthLabel, eligibleResidents) => {
@@ -1163,9 +1177,13 @@ function Staff() {
                     className="d-flex justify-content-between align-items-center"
                     key={item.status}
                   >
-                    <span className={`badge ${getBadgeClass(item.status)}`}>
+                    <button
+                      className={`badge border-0 ${getBadgeClass(item.status)}`}
+                      onClick={() => filterByStatus(item.status)}
+                      type="button"
+                    >
                       {item.status}
-                    </span>
+                    </button>
 
                     <span className="fw-bold">
                       {item.count}
@@ -1198,7 +1216,15 @@ function Staff() {
                     <tbody>
                       {topBlocks.map((block) => (
                         <tr key={block.label}>
-                          <td>{block.label}</td>
+                          <td>
+                            <button
+                              className="btn btn-link btn-sm p-0 text-start"
+                              onClick={() => filterBySearchTerm(block.label)}
+                              type="button"
+                            >
+                              {block.label}
+                            </button>
+                          </td>
                           <td className="text-end fw-bold">{block.count}</td>
                         </tr>
                       ))}
@@ -1231,7 +1257,15 @@ function Staff() {
                     <tbody>
                       {topLocations.map((location) => (
                         <tr key={location.label}>
-                          <td>{location.label}</td>
+                          <td>
+                            <button
+                              className="btn btn-link btn-sm p-0 text-start"
+                              onClick={() => filterBySearchTerm(location.label)}
+                              type="button"
+                            >
+                              {location.label}
+                            </button>
+                          </td>
                           <td className="text-end fw-bold">{location.count}</td>
                         </tr>
                       ))}

@@ -63,7 +63,7 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
         }
       }
     }
-  } catch (error) {
+  } catch {
     // Photon geocoding failed, will try Nominatim fallback
   }
 
@@ -93,7 +93,7 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
         displayName: locationItem.display_name,
       };
     }
-  } catch (error) {
+  } catch {
     // Nominatim fallback also failed
   }
 
@@ -135,10 +135,10 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
     if (!isValidPostalCode) {
       return;
     }
-    setIsSearching(true);
-
     // Use ref to store timeout for cleanup
     searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+
       try {
         const result = await geocodePostalCode(trimmedInput, trimmedBlock);
         if (result) {
@@ -148,7 +148,7 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
         } else {
           setIsSearching(false);
         }
-      } catch (err) {
+      } catch {
         setIsSearching(false);
       }
     }, 400);
