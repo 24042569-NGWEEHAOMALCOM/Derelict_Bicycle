@@ -783,7 +783,9 @@ function Staff() {
   ];
   const topBlocks = getTopCounts(reports, "blockNumber");
   const residentPointSummary = getResidentPoints(reports);
-  const topResidentContributors = residentPointSummary.slice(0, 5);
+  const eligibleResidentContributors = residentPointSummary.filter(
+    (resident) => resident.points >= monthlyDrawThreshold
+  );
   const eligibleDrawResidents = residentPointSummary.filter(
     (resident) => resident.points >= monthlyDrawThreshold
   );
@@ -1006,12 +1008,12 @@ function Staff() {
           </p>
         </div>
 
-        {topResidentContributors.length === 0 ? (
+        {eligibleResidentContributors.length === 0 ? (
           <p className="text-muted mb-0">
-            No resident contribution data is available yet.
+            No residents have reached {monthlyDrawThreshold} points yet.
           </p>
         ) : (
-          <div className="table-responsive">
+          <div className="table-responsive contributor-table-scroll">
             <table className="table table-sm align-middle mb-0">
               <thead>
                 <tr>
@@ -1023,7 +1025,7 @@ function Staff() {
                 </tr>
               </thead>
               <tbody>
-                {topResidentContributors.map((resident) => (
+                {eligibleResidentContributors.map((resident) => (
                   <tr key={resident.reporterEmail}>
                     <td>{resident.reporterName || resident.reporterEmail}</td>
                     <td>{resident.reporterEmail}</td>
