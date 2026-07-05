@@ -9,6 +9,7 @@ import {
   BICYCLE_VISION_MODEL,
   compareBicycleImages,
 } from "../services/bicycleVisionService";
+import { exportReportsToExcel } from "../utils/exportReportsToExcel";
 
 const statusOptions = [
   "All",
@@ -813,6 +814,10 @@ function Staff() {
     setSelectedReportId("");
   };
 
+  const handleExportReports = () => {
+    exportReportsToExcel(filteredReports, getReportTypeLabel, getDisplayStatus);
+  };
+
   const runLuckyDrawForMonth = async (monthValue, monthLabel, eligibleResidents) => {
     if (eligibleResidents.length === 0) {
       alert("No residents have reached 100 points yet.");
@@ -1323,6 +1328,17 @@ function Staff() {
               Clear
             </button>
           </div>
+        </div>
+
+        <div className="d-flex flex-wrap gap-2 mt-3">
+          <button
+            className="btn btn-success"
+            type="button"
+            onClick={handleExportReports}
+            disabled={filteredReports.length === 0}
+          >
+            Export to Excel
+          </button>
         </div>
 
         <p className="text-muted mt-3 mb-0">
