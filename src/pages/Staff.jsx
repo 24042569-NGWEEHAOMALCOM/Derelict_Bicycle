@@ -9,7 +9,10 @@ import {
   BICYCLE_VISION_MODEL,
   compareBicycleImages,
 } from "../services/bicycleVisionService";
-import { exportReportsToExcel } from "../utils/exportReportsToExcel";
+import {
+  exportMonthlyLuckyDrawToExcel,
+  exportReportsToExcel,
+} from "../utils/exportReportsToExcel";
 
 const statusOptions = [
   "All",
@@ -820,6 +823,10 @@ function Staff() {
     exportReportsToExcel(filteredReports, getReportTypeLabel, getDisplayStatus);
   };
 
+  const handleExportMonthlyLuckyDraw = () => {
+    exportMonthlyLuckyDrawToExcel(displayedLuckyDraw);
+  };
+
   const runLuckyDrawForMonth = async (monthValue, monthLabel, eligibleResidents) => {
     if (eligibleResidents.length === 0) {
       alert("No residents have reached 100 points yet.");
@@ -1090,18 +1097,28 @@ function Staff() {
                   <label className="form-label small mb-1" htmlFor="drawMonthSelect">
                     View month
                   </label>
-                  <select
-                    id="drawMonthSelect"
-                    className="form-select form-select-sm"
-                    value={selectedDrawMonth || displayedLuckyDraw?.id || ""}
-                    onChange={(event) => setSelectedDrawMonth(event.target.value)}
-                  >
-                    {monthlyLuckyDraws.map((draw) => (
-                      <option key={draw.id} value={draw.id}>
-                        {draw.monthLabel || getDrawMonthLabel(draw.month || draw.id)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-end">
+                    <select
+                      id="drawMonthSelect"
+                      className="form-select form-select-sm"
+                      value={selectedDrawMonth || displayedLuckyDraw?.id || ""}
+                      onChange={(event) => setSelectedDrawMonth(event.target.value)}
+                    >
+                      {monthlyLuckyDraws.map((draw) => (
+                        <option key={draw.id} value={draw.id}>
+                          {draw.monthLabel || getDrawMonthLabel(draw.month || draw.id)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn btn-success btn-sm"
+                      type="button"
+                      onClick={handleExportMonthlyLuckyDraw}
+                      disabled={!displayedLuckyDraw}
+                    >
+                      Export to Excel
+                    </button>
+                  </div>
                 </div>
               </div>
 
