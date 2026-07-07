@@ -102,9 +102,17 @@ const geocodePostalCode = async (postalCode, blockNumber) => {
 
 function MapUpdater({ location }) {
   const map = useMap();
+  const lastLocationRef = useRef(null);
 
   useEffect(() => {
-    if (location && map) {
+    if (!location || !map) {
+      return;
+    }
+
+    const nextLocation = `${location.latitude},${location.longitude}`;
+
+    if (lastLocationRef.current !== nextLocation) {
+      lastLocationRef.current = nextLocation;
       map.flyTo([location.latitude, location.longitude], 18, {
         duration: 1,
       });
@@ -119,13 +127,22 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const onLocationSelectRef = useRef(onLocationSelect);
+  const searchRequestRef = useRef(0);
   
   const trimmedInput = locationInput ? locationInput.trim() : "";
   const trimmedBlock = blockNumber ? blockNumber.trim() : "";
   const isValidPostalCode = /^\d{5,6}$/.test(trimmedInput);
 
+  useEffect(() => {
+    onLocationSelectRef.current = onLocationSelect;
+  }, [onLocationSelect]);
+
   // Handle automatic search when postal code changes
   useEffect(() => {
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+
     // Clear any existing timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -141,15 +158,20 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
 
       try {
         const result = await geocodePostalCode(trimmedInput, trimmedBlock);
+        if (searchRequestRef.current !== requestId) {
+          return;
+        }
+
         if (result) {
           setSelectedLocation(result);
-          onLocationSelect(result);
-          setIsSearching(false);
-        } else {
-          setIsSearching(false);
+          onLocationSelectRef.current(result);
         }
       } catch {
-        setIsSearching(false);
+        // Keep the current pin if a later lookup fails.
+      } finally {
+        if (searchRequestRef.current === requestId) {
+          setIsSearching(false);
+        }
       }
     }, 400);
 
@@ -159,11 +181,11 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [trimmedInput, trimmedBlock, isValidPostalCode, onLocationSelect]);
+  }, [trimmedInput, trimmedBlock, isValidPostalCode]);
 
   const handleLocationSelect = (location) => {
     setSelectedLocation(location);
-    onLocationSelect(location);
+    onLocationSelectRef.current(location);
   };
 
   return (
@@ -191,11 +213,18 @@ function InteractiveMapDisplay({ onLocationSelect, locationInput = "", blockNumb
           </Marker>
         )}
       </MapContainer>
-      <div className="p-2 bg-light text-muted small text-center">
-        {isSearching ? (
+      <div
+        className="p-2 bg-light text-muted small text-center"
+        style={{ minHeight: "40px", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        {isSearching && isValidPostalCode ? (
           <span>📍 Pinning {trimmedBlock ? `Block ${trimmedBlock}` : "location"} at {trimmedInput}...</span>
         ) : trimmedInput && !isValidPostalCode ? (
           <span>⚠️ Enter a valid Singapore postal code (5-6 digits)</span>
+        ) : selectedLocation && trimmedInput ? (
+          <span>Pinned {trimmedBlock ? `Block ${trimmedBlock}` : "location"} at {trimmedInput}</span>
+        ) : selectedLocation ? (
+          <span>Pinned selected map location</span>
         ) : (
           <span>📍 Enter postal code & block number to drop pin</span>
         )}

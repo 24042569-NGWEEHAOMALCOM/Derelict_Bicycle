@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/firebase";
@@ -92,6 +92,14 @@ function ReportBike({ reportType = "abandoned" }) {
       });
     }
   };
+
+  const handleLocationSelect = useCallback((location) => {
+    setGpsLocation(location);
+    setMessage({
+      type: "success",
+      text: `Location set: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
+    });
+  }, []);
 
   const compressImage = (file) => {
     return new Promise((resolve) => {
@@ -351,13 +359,7 @@ function ReportBike({ reportType = "abandoned" }) {
               <InteractiveMapDisplay
                 locationInput={formData.location}
                 blockNumber={formData.blockNumber}
-                onLocationSelect={(location) => {
-                  setGpsLocation(location);
-                  setMessage({
-                    type: "success",
-                    text: `Location set: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
-                  });
-                }}
+                onLocationSelect={handleLocationSelect}
               />
               {gpsLocation && (
                 <div className="mt-2 p-3 bg-light rounded">
