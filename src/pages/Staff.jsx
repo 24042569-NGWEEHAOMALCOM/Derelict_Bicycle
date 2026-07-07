@@ -366,6 +366,7 @@ function Staff() {
   const [duplicateCheckMessage, setDuplicateCheckMessage] = useState(null);
   const [selectedReportId, setSelectedReportId] = useState("");
   const [selectedDrawMonth, setSelectedDrawMonth] = useState("");
+  const [exportAllReports, setExportAllReports] = useState(false);
   const location = useLocation();
   const listRefs = useRef({});
   const detailsRef = useRef(null);
@@ -821,11 +822,8 @@ function Staff() {
   };
 
   const handleExportReports = () => {
-    exportReportsToExcel(filteredReports, getReportTypeLabel, getDisplayStatus);
-  };
-
-  const handleExportAllReports = () => {
-    exportReportsToExcel(reports, getReportTypeLabel, getDisplayStatus);
+    const exportList = exportAllReports ? reports : filteredReports;
+    exportReportsToExcel(exportList, getReportTypeLabel, getDisplayStatus);
   };
 
   const handleExportMonthlyLuckyDraw = () => {
@@ -1310,6 +1308,15 @@ function Staff() {
       </div>
 
       <div className="portal-card mb-5" style={{ minHeight: "auto" }}>
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <h3 className="h5 fw-bold mb-2">Filter Reports</h3>
+            <p className="text-muted mb-0">
+              Use the search box and status dropdown below to narrow the report list before exporting.
+            </p>
+          </div>
+        </div>
+
         <div className="row g-3 align-items-end">
           <div className="col-lg-7">
             <label className="form-label" htmlFor="staffSearch">
@@ -1357,33 +1364,51 @@ function Staff() {
         </div>
 
         <p className="text-muted small mt-3 mb-2">
-          Use the search box or status dropdown to limit which reports are shown. "Export visible reports" downloads only those matching the current filter, while "Export all reports" downloads every report in the system.
+          Search and filter the view above to choose which reports should be exported.
         </p>
 
-        <div className="d-flex flex-wrap gap-2 mt-3">
-          <button
-            className="btn btn-success"
-            type="button"
-            onClick={handleExportReports}
-            disabled={filteredReports.length === 0}
-          >
-            Export visible reports to Excel
-          </button>
-          <button
-            className="btn btn-outline-secondary"
-            type="button"
-            onClick={handleExportAllReports}
-            disabled={reports.length === 0}
-          >
-            Export all reports to Excel
-          </button>
+        <div className="border-top mt-4 pt-4">
+          <div className="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
+            <div>
+              <h3 className="h5 fw-bold mb-2">Export Reports</h3>
+              <p className="text-muted mb-0">
+                Choose whether to export only the visible report results or every report in the system.
+              </p>
+            </div>
+
+            <div className="text-md-end">
+              <div className="form-check mb-3">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="exportAllReports"
+                  checked={exportAllReports}
+                  onChange={(event) => setExportAllReports(event.target.checked)}
+                />
+                <label className="form-check-label" htmlFor="exportAllReports">
+                  Export all reports
+                </label>
+              </div>
+
+              <button
+                className="btn btn-success"
+                type="button"
+                onClick={handleExportReports}
+                disabled={exportAllReports ? reports.length === 0 : filteredReports.length === 0}
+              >
+                {exportAllReports ? "Export all reports to Excel" : "Export visible reports to Excel"}
+              </button>
+
+              <p className="text-muted small mt-2 mb-0">
+                {exportAllReports
+                  ? "All reports will be exported regardless of current filters."
+                  : hasActiveFilters
+                  ? "Only the currently filtered reports are exported."
+                  : "No filters are active, so all visible reports will be exported."}
+              </p>
+            </div>
+          </div>
         </div>
-
-        <p className="text-muted small mt-2 mb-2">
-          {hasActiveFilters
-            ? "Filters are active. Export visible reports downloads only the matching results."
-            : "No filters are active. Export visible reports downloads all reports by default."}
-        </p>
 
         <p className="text-muted mt-3 mb-0">
           Showing {filteredReports.length} of {reports.length} reports.
