@@ -14,6 +14,8 @@ import {
   exportReportsToExcel,
 } from "../utils/exportReportsToExcel";
 
+const residentResponseStatus = "Resident Response";
+
 const statusOptions = [
   "All",
   "Reported",
@@ -26,6 +28,7 @@ const statusOptions = [
   "Closed",
   "Closed - Claimed",
   "Closed - Not Abandoned",
+  residentResponseStatus,
 ];
 
 const verifiedImproperParkingStatus = "Verified: Improperly Parked";
@@ -179,6 +182,20 @@ const getLatestResponse = (report) => {
 
   return report.responseHistory[report.responseHistory.length - 1];
 };
+
+const hasReportResidentResponse = (report) =>
+  Boolean(
+    report?.claimName ||
+      report?.claimPhone ||
+      report?.claimProof ||
+      report?.notAbandonedReason ||
+      report?.acknowledgementName ||
+      report?.acknowledgementPhone ||
+      report?.responseHistory?.length > 0
+  );
+
+const hasOpenResidentResponse = (report) =>
+  hasReportResidentResponse(report) && !isClosedStatus(report?.status);
 
 const getReportAcknowledgementPhone = (report) => {
   const latestResponse = getLatestResponse(report);
@@ -567,7 +584,10 @@ function Staff() {
   const filteredReports = reports.filter((report) => {
     const displayStatus = getDisplayStatus(report.status);
     const matchesStatus =
-      statusFilter === "All" || displayStatus === statusFilter;
+      statusFilter === "All" ||
+      (statusFilter === residentResponseStatus
+        ? hasOpenResidentResponse(report)
+        : displayStatus === statusFilter);
 
     const searchableText = [
       report.id,
@@ -608,8 +628,7 @@ function Staff() {
     selectedReport?.acknowledgementName ||
     selectedReport?.acknowledgementPhone ||
     selectedReport?.responseHistory?.length > 0;
-  const hasResidentResponse =
-    hasClaimResponse || hasNotAbandonedResponse || hasAcknowledgementResponse;
+  const hasResidentResponse = hasReportResidentResponse(selectedReport);
   const availableStatusActions = getStatusActions(selectedReport);
   const aiDuplicateReports = (selectedReport?.duplicateDetection?.matches || [])
     .map((match) => ({
@@ -714,8 +733,13 @@ function Staff() {
     .filter((status) => status !== "All")
     .map((status) => ({
       status,
-      count: reports.filter((report) => getDisplayStatus(report.status) === status).length,
+      count: reports.filter((report) =>
+        status === residentResponseStatus
+          ? hasOpenResidentResponse(report)
+          : getDisplayStatus(report.status) === status
+      ).length,
     }));
+  const residentResponseCount = reports.filter(hasOpenResidentResponse).length;
   const dashboardMetrics = [
     {
       label: "Total Reports",
@@ -727,16 +751,7 @@ function Staff() {
     },
     {
       label: "Resident Responses",
-      count: reports.filter(
-        (report) =>
-          report.claimName ||
-          report.claimPhone ||
-          report.claimProof ||
-          report.notAbandonedReason ||
-          report.acknowledgementName ||
-          report.acknowledgementPhone ||
-          report.responseHistory?.length > 0
-      ).length,
+      count: residentResponseCount,
     },
     {
       label: "Closed Cases",
