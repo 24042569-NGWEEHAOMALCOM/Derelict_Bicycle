@@ -824,6 +824,10 @@ function Staff() {
     exportReportsToExcel(filteredReports, getReportTypeLabel, getDisplayStatus);
   };
 
+  const handleExportAllReports = () => {
+    exportReportsToExcel(reports, getReportTypeLabel, getDisplayStatus);
+  };
+
   const handleExportMonthlyLuckyDraw = () => {
     exportMonthlyLuckyDrawToExcel(displayedLuckyDraw);
   };
@@ -1095,29 +1099,31 @@ function Staff() {
                 </div>
 
                 <div className="text-md-end">
-                  <label className="form-label small mb-1" htmlFor="drawMonthSelect">
-                    View month
-                  </label>
-                  <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-end">
-                    <select
-                      id="drawMonthSelect"
-                      className="form-select form-select-sm"
-                      value={selectedDrawMonth || displayedLuckyDraw?.id || ""}
-                      onChange={(event) => setSelectedDrawMonth(event.target.value)}
-                    >
-                      {monthlyLuckyDraws.map((draw) => (
-                        <option key={draw.id} value={draw.id}>
-                          {draw.monthLabel || getDrawMonthLabel(draw.month || draw.id)}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="d-flex flex-column align-items-start align-items-md-end gap-2">
+                    <div className="text-start text-md-end">
+                      <label className="form-label small mb-1" htmlFor="drawMonthSelect">
+                        View month
+                      </label>
+                      <select
+                        id="drawMonthSelect"
+                        className="form-select form-select-sm"
+                        value={selectedDrawMonth || displayedLuckyDraw?.id || ""}
+                        onChange={(event) => setSelectedDrawMonth(event.target.value)}
+                      >
+                        {monthlyLuckyDraws.map((draw) => (
+                          <option key={draw.id} value={draw.id}>
+                            {draw.monthLabel || getDrawMonthLabel(draw.month || draw.id)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <button
                       className="btn btn-success btn-sm"
                       type="button"
                       onClick={handleExportMonthlyLuckyDraw}
                       disabled={!displayedLuckyDraw}
                     >
-                      Export to Excel
+                      Export selected month to Excel
                     </button>
                   </div>
                 </div>
@@ -1351,7 +1357,7 @@ function Staff() {
         </div>
 
         <p className="text-muted small mt-3 mb-2">
-          Use the search box or status dropdown to narrow which reports are shown. When you click Export, only the visible reports will be downloaded. If no filter is active, the export includes all reports.
+          Use the search box or status dropdown to limit which reports are shown. "Export visible reports" downloads only those matching the current filter, while "Export all reports" downloads every report in the system.
         </p>
 
         <div className="d-flex flex-wrap gap-2 mt-3">
@@ -1363,12 +1369,20 @@ function Staff() {
           >
             Export visible reports to Excel
           </button>
+          <button
+            className="btn btn-outline-secondary"
+            type="button"
+            onClick={handleExportAllReports}
+            disabled={reports.length === 0}
+          >
+            Export all reports to Excel
+          </button>
         </div>
 
         <p className="text-muted small mt-2 mb-2">
           {hasActiveFilters
-            ? "Filters are active. Export will include only the matching reports displayed above."
-            : "No filters are active. Export will include all reports."}
+            ? "Filters are active. Export visible reports downloads only the matching results."
+            : "No filters are active. Export visible reports downloads all reports by default."}
         </p>
 
         <p className="text-muted mt-3 mb-0">
