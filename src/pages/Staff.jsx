@@ -604,6 +604,7 @@ function Staff() {
   }, [selectedReportId]);
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const hasActiveFilters = statusFilter !== "All" || normalizedSearchTerm.length > 0;
 
   const filteredReports = reports.filter((report) => {
     const displayStatus = getDisplayStatus(report.status);
@@ -1349,6 +1350,10 @@ function Staff() {
           </div>
         </div>
 
+        <p className="text-muted small mt-3 mb-2">
+          Use the search box or status dropdown to narrow which reports are shown. When you click Export, only the visible reports will be downloaded. If no filter is active, the export includes all reports.
+        </p>
+
         <div className="d-flex flex-wrap gap-2 mt-3">
           <button
             className="btn btn-success"
@@ -1356,9 +1361,15 @@ function Staff() {
             onClick={handleExportReports}
             disabled={filteredReports.length === 0}
           >
-            Export to Excel
+            Export visible reports to Excel
           </button>
         </div>
+
+        <p className="text-muted small mt-2 mb-2">
+          {hasActiveFilters
+            ? "Filters are active. Export will include only the matching reports displayed above."
+            : "No filters are active. Export will include all reports."}
+        </p>
 
         <p className="text-muted mt-3 mb-0">
           Showing {filteredReports.length} of {reports.length} reports.
