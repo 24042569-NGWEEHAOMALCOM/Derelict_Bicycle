@@ -234,27 +234,6 @@ const getDuplicateVerdictLabel = (verdict) =>
 const getDuplicateVerdictClass = (verdict) =>
   verdict === "likely_same" ? "bg-danger" : "bg-warning text-dark";
 
-const seenReportsStorageKey = "staffSeenReportIds";
-
-const getStoredSeenReportIds = () => {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(seenReportsStorageKey) || "[]"));
-  } catch {
-    return new Set();
-  }
-};
-
-const storeSeenReportIds = (seenReportIds) => {
-  try {
-    localStorage.setItem(
-      seenReportsStorageKey,
-      JSON.stringify(Array.from(seenReportIds))
-    );
-  } catch (error) {
-    console.error("Error storing seen reports:", error);
-  }
-};
-
 const getTopCounts = (items, fieldName, limit = 5) => {
   const countMap = items.reduce((currentCounts, item) => {
     const key = item[fieldName]?.trim();
@@ -371,26 +350,6 @@ function Staff() {
   const listRefs = useRef({});
   const detailsRef = useRef(null);
   const readUpdateAttemptsRef = useRef(new Set());
-  const seenReportIdsRef = useRef(getStoredSeenReportIds());
-  const hasSeenBaselineRef = useRef(
-    localStorage.getItem(seenReportsStorageKey) !== null
-  );
-
-  const applyReadState = (reportList) => {
-    if (!hasSeenBaselineRef.current) {
-      seenReportIdsRef.current = new Set(reportList.map((report) => report.id));
-      storeSeenReportIds(seenReportIdsRef.current);
-      hasSeenBaselineRef.current = true;
-    }
-
-    return reportList.map((report) => ({
-      ...report,
-      read:
-        report.read === false || !seenReportIdsRef.current.has(report.id)
-          ? false
-          : true,
-    }));
-  };
 
   const getReportList = async () => {
     const querySnapshot = await getDocs(collection(db, "reports"));
@@ -404,7 +363,7 @@ function Staff() {
   const fetchReports = async () => {
     const reportList = await getReportList();
 
-    setReports(applyReadState(reportList));
+    setReports(reportList);
   };
 
   const updateStatus = async (reportId, newStatus) => {
@@ -489,7 +448,7 @@ function Staff() {
           ...docItem.data(),
         }));
 
-        setReports(applyReadState(reportList));
+        setReports(reportList);
         setIsLoading(false);
       },
       (error) => {
@@ -549,8 +508,6 @@ function Staff() {
 
     const readAt = new Date();
     readUpdateAttemptsRef.current.add(selectedReportId);
-    seenReportIdsRef.current.add(selectedReportId);
-    storeSeenReportIds(seenReportIdsRef.current);
 
     setReports((currentReports) =>
       currentReports.map((report) =>
