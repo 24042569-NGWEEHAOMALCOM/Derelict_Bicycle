@@ -1432,16 +1432,16 @@ function Staff() {
               </p>
             </div>
 
-            <div className="text-md-end">
-              <div className="form-check mb-3">
+            <div className="staff-export-actions">
+              <div className="staff-export-checkbox mb-3">
                 <input
-                  className="form-check-input"
+                  className="form-check-input staff-export-checkbox-input"
                   type="checkbox"
                   id="exportAllReports"
                   checked={exportAllReports}
                   onChange={(event) => setExportAllReports(event.target.checked)}
                 />
-                <label className="form-check-label" htmlFor="exportAllReports">
+                <label className="staff-export-checkbox-label" htmlFor="exportAllReports">
                   Ignore filters and export all reports
                 </label>
               </div>
@@ -1457,7 +1457,7 @@ function Staff() {
 
               <p className="text-muted small mt-2 mb-0">
                 {exportAllReports
-                  ? "Filename: bicycle-all-reports-[date].xlsx"
+                  ? "Filename: bicycle-all-reports-[date].xlsx. Reports are separated into status tabs."
                   : hasActiveFilters
                   ? "Filename: bicycle-filtered-reports-[date].xlsx. Only the current results are included."
                   : "No filters are active, so the filtered export currently includes every report."}

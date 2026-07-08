@@ -103,13 +103,8 @@ const getResponseType = (report) => {
   return "";
 };
 
-export function exportReportsToExcel(
-  reports,
-  getReportTypeLabel,
-  getDisplayStatus,
-  exportLabel = "visible-reports"
-) {
-  const rows = reports.map((report) => ({
+const buildReportRows = (reports, getReportTypeLabel, getDisplayStatus) =>
+  reports.map((report) => ({
     "Report ID": report.id || "",
     "Report Link": report.qrUrl || "",
     "Type": getReportTypeLabel(report),
@@ -147,9 +142,84 @@ export function exportReportsToExcel(
     "Read": report.read ? "Yes" : "No",
   }));
 
+const toSheetName = (name, usedSheetNames) => {
+  const fallbackName = "Unknown";
+  const cleanName = String(name || fallbackName)
+    .replace(/[:\\/?*[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 31) || fallbackName;
+
+  let sheetName = cleanName;
+  let index = 2;
+
+  while (usedSheetNames.has(sheetName)) {
+    const suffix = ` ${index}`;
+    sheetName = cleanName.slice(0, 31 - suffix.length) + suffix;
+    index += 1;
+  }
+
+  usedSheetNames.add(sheetName);
+  return sheetName;
+};
+
+const appendJsonSheet = (workbook, rows, sheetName, usedSheetNames) => {
   const worksheet = utils.json_to_sheet(rows);
+  utils.book_append_sheet(
+    workbook,
+    worksheet,
+    toSheetName(sheetName, usedSheetNames)
+  );
+};
+
+const appendStatusSheets = (workbook, reports, getReportTypeLabel, getDisplayStatus) => {
+  const usedSheetNames = new Set();
+  const groupedReports = reports.reduce((groups, report) => {
+    const displayStatus = getDisplayStatus(report.status) || "Unknown";
+    return {
+      ...groups,
+      [displayStatus]: [...(groups[displayStatus] || []), report],
+    };
+  }, {});
+  const summaryRows = Object.entries(groupedReports)
+    .sort(([firstStatus], [secondStatus]) => firstStatus.localeCompare(secondStatus))
+    .map(([status, statusReports]) => ({
+      Status: status,
+      "Report Count": statusReports.length,
+    }));
+
+  appendJsonSheet(workbook, summaryRows, "Summary", usedSheetNames);
+
+  Object.entries(groupedReports)
+    .sort(([firstStatus], [secondStatus]) => firstStatus.localeCompare(secondStatus))
+    .forEach(([status, statusReports]) => {
+      appendJsonSheet(
+        workbook,
+        buildReportRows(statusReports, getReportTypeLabel, getDisplayStatus),
+        status,
+        usedSheetNames
+      );
+    });
+};
+
+export function exportReportsToExcel(
+  reports,
+  getReportTypeLabel,
+  getDisplayStatus,
+  exportLabel = "visible-reports"
+) {
   const workbook = utils.book_new();
-  utils.book_append_sheet(workbook, worksheet, "Reports");
+
+  if (exportLabel === "all-reports") {
+    appendStatusSheets(workbook, reports, getReportTypeLabel, getDisplayStatus);
+  } else {
+    appendJsonSheet(
+      workbook,
+      buildReportRows(reports, getReportTypeLabel, getDisplayStatus),
+      "Reports",
+      new Set()
+    );
+  }
 
   const safeExportLabel = exportLabel.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
   const fileName = `bicycle-${safeExportLabel}-${new Date().toISOString().slice(0, 10)}.xlsx`;
