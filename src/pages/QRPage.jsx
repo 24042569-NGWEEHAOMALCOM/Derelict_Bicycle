@@ -5,10 +5,10 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
 const finalStatuses = [
-  "Removed",
   "Closed",
   "Closed - Claimed",
   "Closed - Not Abandoned",
+  "Pending Owner Claim",
   "Acknowledged - 1st Warning",
   "Acknowledged - 2nd Warning",
 ];
@@ -105,6 +105,8 @@ function QRPage() {
   const isFinalStatus =
     finalStatuses.includes(report.status) ||
     (isImproperParking && isAcknowledgedNotice);
+  const isRemovedAbandonedBicycle = report.status === "Removed" && !isImproperParking;
+  const hasPendingOwnerClaim = report.status === "Pending Owner Claim";
 
   return (
     <div className="container py-5">
@@ -159,7 +161,15 @@ function QRPage() {
 
         <div className="mt-4">
 
-          {isFinalStatus ? (
+          {isRemovedAbandonedBicycle ? (
+            <div className="alert alert-danger">
+              This bicycle has been removed by Town Council. If you are the owner, submit an ownership claim and visit the Town Council office for collection.
+            </div>
+          ) : hasPendingOwnerClaim ? (
+            <div className="alert alert-info">
+              Your ownership claim has been submitted. Staff will verify the claim when you visit the Town Council office for collection.
+            </div>
+          ) : isFinalStatus ? (
             <div className="alert alert-success">
               {isSecondWarningNotice
                 ? "This 2nd warning has been recorded. Please visit the Town Council office for assistance."
@@ -184,17 +194,19 @@ function QRPage() {
 
         </div>
 
-        {!isFinalStatus && !isImproperParking && (
+        {!isFinalStatus && !isImproperParking && !isRemovedAbandonedBicycle && (
           <div className="d-flex flex-wrap gap-3 mt-4">
-
-            <a href={`/claim/${report.id}`} className="btn btn-success">
-              Claim Bicycle
-            </a>
-
-            <a href={`/not-abandoned/${report.id}`} className="btn btn-outline-secondary">
+            <a href={`/not-abandoned/${report.id}`} className="btn btn-primary">
               Report Not Abandoned
             </a>
+          </div>
+        )}
 
+        {isRemovedAbandonedBicycle && (
+          <div className="d-flex flex-wrap gap-3 mt-4">
+            <a href={`/claim/${report.id}`} className="btn btn-success">
+              Claim Removed Bicycle
+            </a>
           </div>
         )}
 

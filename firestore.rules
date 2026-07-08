@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isReportCreate() {
+      return request.resource.data.status == "Reported"
+        && request.resource.data.pointsEarned == 0
+        && request.resource.data.read == false;
+    }
+
+    function onlyAllowedPublicReportFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        "status",
+        "claimName",
+        "claimPhone",
+        "claimProof",
+        "claimedAt",
+        "notAbandonedReason",
+        "notAbandonedAt",
+        "acknowledgementName",
+        "acknowledgementPhone",
+        "acknowledgementPhoneNormalized",
+        "acknowledgementUnit",
+        "acknowledgementNotes",
+        "acknowledgedAt",
+        "warningLevel",
+        "warningNumber",
+        "responseHistory",
+        "linkedFirstWarningReportId",
+        "enforcementReviewRequired",
+        "updatedAt"
+      ]);
+    }
+
+    function isPublicOwnerClaim() {
+      return resource.data.status == "Removed"
+        && request.resource.data.status == "Pending Owner Claim";
+    }
+
+    function isPublicNotAbandonedResponse() {
+      return !(resource.data.status in ["Removed", "Closed", "Closed - Claimed", "Closed - Not Abandoned", "Pending Owner Claim"])
+        && request.resource.data.status == "Closed - Not Abandoned";
+    }
+
+    function isPublicParkingAcknowledgement() {
+      return resource.data.caseType == "improperParking"
+        && !(resource.data.status in ["Removed", "Closed", "Closed - Claimed", "Closed - Not Abandoned"])
+        && request.resource.data.status in ["Acknowledged - 1st Warning", "Acknowledged - 2nd Warning"];
+    }
+
+    match /reports/{reportId} {
+      allow create: if isReportCreate();
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow update: if isSignedIn()
+        || (
+          onlyAllowedPublicReportFieldsChanged()
+          && (
+            isPublicOwnerClaim()
+            || isPublicNotAbandonedResponse()
+            || isPublicParkingAcknowledgement()
+          )
+        );
+      allow delete: if isSignedIn();
+    }
+
+    match /monthlyLuckyDraws/{drawMonth} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

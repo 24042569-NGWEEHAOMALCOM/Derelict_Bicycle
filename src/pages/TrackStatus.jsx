@@ -28,6 +28,7 @@ const getBadgeClass = (status) => {
   if (getDisplayStatus(status) === firstWarningStatus) return "bg-warning text-dark";
   if (getDisplayStatus(status) === secondWarningStatus) return "bg-danger";
   if (status === "Removed") return "bg-danger";
+  if (status === "Pending Owner Claim") return "bg-warning text-dark";
   if (status === "Closed") return "bg-success";
   if (status === "Closed - Claimed") return "bg-success";
   if (status === "Closed - Not Abandoned") return "bg-primary";

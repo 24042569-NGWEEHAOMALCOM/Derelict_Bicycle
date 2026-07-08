@@ -87,9 +87,31 @@ const formatDuplicateDetection = (duplicateDetection) => {
     .join(" | ");
 };
 
-export function exportReportsToExcel(reports, getReportTypeLabel, getDisplayStatus) {
+const getResponseType = (report) => {
+  if (report.claimName || report.claimPhone || report.claimProof) {
+    return "Owner claim";
+  }
+
+  if (report.notAbandonedReason) {
+    return "Not abandoned";
+  }
+
+  if (report.acknowledgementName || report.acknowledgementPhone || report.responseHistory?.length > 0) {
+    return "Improper parking acknowledgement";
+  }
+
+  return "";
+};
+
+export function exportReportsToExcel(
+  reports,
+  getReportTypeLabel,
+  getDisplayStatus,
+  exportLabel = "visible-reports"
+) {
   const rows = reports.map((report) => ({
     "Report ID": report.id || "",
+    "Report Link": report.qrUrl || "",
     "Type": getReportTypeLabel(report),
     "Status": getDisplayStatus(report.status),
     "Block": report.blockNumber || "",
@@ -106,7 +128,10 @@ export function exportReportsToExcel(reports, getReportTypeLabel, getDisplayStat
     "Claim Name": report.claimName || "",
     "Claim Phone": report.claimPhone || "",
     "Claim Proof": report.claimProof || "",
+    "Claim Submitted At": formatCellValue(report.claimedAt),
     "Not Abandoned Reason": report.notAbandonedReason || "",
+    "Not Abandoned Submitted At": formatCellValue(report.notAbandonedAt),
+    "Resident Response Type": getResponseType(report),
     "Acknowledgement Name": report.acknowledgementName || "",
     "Acknowledgement Phone": report.acknowledgementPhone || "",
     "Response History": formatResponseHistory(report.responseHistory),
@@ -126,7 +151,8 @@ export function exportReportsToExcel(reports, getReportTypeLabel, getDisplayStat
   const workbook = utils.book_new();
   utils.book_append_sheet(workbook, worksheet, "Reports");
 
-  const fileName = `reports-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const safeExportLabel = exportLabel.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+  const fileName = `bicycle-${safeExportLabel}-${new Date().toISOString().slice(0, 10)}.xlsx`;
   writeFile(workbook, fileName);
 }
 

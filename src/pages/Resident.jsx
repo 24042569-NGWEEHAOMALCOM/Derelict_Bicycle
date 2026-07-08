@@ -51,6 +51,13 @@ function Resident() {
         ...docItem.data(),
       }));
 
+      residentReports.forEach((report) => {
+        window.sessionStorage.setItem(
+          `residentReportAccess:${report.id}`,
+          normalizedEmail
+        );
+      });
+
       const totalPoints = residentReports.reduce(
         (sum, report) => sum + getReportPointBalance(report),
         0
@@ -95,7 +102,7 @@ function Resident() {
             <div className="portal-card h-100">
 
               <div className="icon-box icon-blue mb-4">
-                Report
+                AB
               </div>
 
               <h3 className="fw-bold">
@@ -118,7 +125,7 @@ function Resident() {
             <div className="portal-card h-100">
 
               <div className="icon-box icon-blue mb-4">
-                Report
+                IP
               </div>
 
               <h3 className="fw-bold">
@@ -226,7 +233,11 @@ function Resident() {
                 <tbody>
                   {lookupResult.reports.map((report) => (
                     <tr key={report.id}>
-                      <td>{report.id}</td>
+                      <td>
+                        <Link to={`/report-details/${report.id}`} className="fw-semibold">
+                          {report.id}
+                        </Link>
+                      </td>
                       <td>{report.status}</td>
                       <td className="text-end fw-bold">{report.pointsEarned || 0}</td>
                     </tr>

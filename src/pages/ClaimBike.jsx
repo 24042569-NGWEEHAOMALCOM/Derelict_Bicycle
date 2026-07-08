@@ -4,10 +4,10 @@ import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
 const finalStatuses = [
-  "Removed",
   "Closed",
   "Closed - Claimed",
   "Closed - Not Abandoned",
+  "Pending Owner Claim",
 ];
 
 function ClaimBike() {
@@ -48,14 +48,15 @@ function ClaimBike() {
   }, [id]);
 
   const isFinalStatus = finalStatuses.includes(report?.status);
+  const canSubmitRemovedClaim = report?.status === "Removed";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!report || isFinalStatus) {
+    if (!report || isFinalStatus || !canSubmitRemovedClaim) {
       setMessage({
         type: "warning",
-        text: "This case is no longer accepting claim submissions.",
+        text: "Owner claims are only accepted after the bicycle has been removed.",
       });
       return;
     }
@@ -67,7 +68,7 @@ function ClaimBike() {
       const reportRef = doc(db, "reports", id);
 
       await updateDoc(reportRef, {
-        status: "Closed - Claimed",
+        status: "Pending Owner Claim",
         claimName: name.trim(),
         claimPhone: phone.trim(),
         claimProof: proof.trim(),
@@ -77,7 +78,7 @@ function ClaimBike() {
 
       setMessage({
         type: "success",
-        text: "Claim submitted successfully. This case has been closed as claimed.",
+        text: "Claim submitted successfully. Staff will verify ownership during physical collection.",
       });
 
       navigate(`/qr/${id}`);
@@ -98,7 +99,7 @@ function ClaimBike() {
         <h1 className="fw-bold mb-4">Claim Bicycle</h1>
 
         <p className="text-muted fs-5">
-          Submit your details to confirm that this bicycle is still in use.
+          Submit your details after the bicycle has been removed so staff can verify ownership during collection.
         </p>
 
         {loading ? (
@@ -109,9 +110,11 @@ function ClaimBike() {
           <div className="alert alert-danger">
             Report not found.
           </div>
-        ) : isFinalStatus ? (
+        ) : isFinalStatus || !canSubmitRemovedClaim ? (
           <div className="alert alert-warning">
-            This case is already closed or removed. Claim submissions are no longer accepted.
+            {isFinalStatus
+              ? "This case is already closed or already has an owner claim pending."
+              : "This bicycle has not been removed yet. If it is still in use, submit a not-abandoned response from the QR notice page."}
           </div>
         ) : (
           <>

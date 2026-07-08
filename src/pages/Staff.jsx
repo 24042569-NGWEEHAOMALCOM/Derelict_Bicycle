@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { collection, getDocs, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, onSnapshot, runTransaction, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import QRCode from "qrcode";
 import NotificationSystem from "../components/NotificationSystem";
@@ -23,6 +23,7 @@ const statusOptions = [
   "Acknowledged - 1st Warning",
   "Acknowledged - 2nd Warning",
   "Removed",
+  "Pending Owner Claim",
   "Closed",
   "Closed - Claimed",
   "Closed - Not Abandoned",
@@ -85,9 +86,26 @@ const statusActions = {
   ],
   Removed: [
     {
+      label: "Close as Claimed",
+      status: "Closed - Claimed",
+      className: "btn btn-success btn-sm",
+    },
+    {
       label: "Close Case",
       status: "Closed",
       className: "btn btn-success btn-sm",
+    },
+  ],
+  "Pending Owner Claim": [
+    {
+      label: "Owner Collected - Close Claim",
+      status: "Closed - Claimed",
+      className: "btn btn-success btn-sm",
+    },
+    {
+      label: "Close Case",
+      status: "Closed",
+      className: "btn btn-outline-success btn-sm",
     },
   ],
   Closed: [],
@@ -290,11 +308,27 @@ const monthlyDrawThreshold = 100;
 const monthlyDrawWinnerCount = 20;
 const monthlyDrawVoucherValue = 5;
 const monthlyDrawBudget = monthlyDrawWinnerCount * monthlyDrawVoucherValue;
+const duplicateDrawErrorCode = "monthly-draw-already-finalized";
 
 const getDeductionAmountForResident = (residentPoints) =>
   residentPoints >= monthlyDrawThreshold ? monthlyDrawThreshold : 0;
 
 const getCurrentDrawMonth = () => new Date().toISOString().slice(0, 7);
+
+const getDrawableMonths = (count = 12) => {
+  const months = [];
+  const date = new Date();
+  date.setDate(1);
+
+  for (let index = 0; index < count; index += 1) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    months.push(`${year}-${month}`);
+    date.setMonth(date.getMonth() - 1);
+  }
+
+  return months;
+};
 
 const getDrawMonthLabel = (monthValue) => {
   if (!monthValue) return "Current month";
@@ -345,6 +379,7 @@ function Staff() {
   const [duplicateCheckMessage, setDuplicateCheckMessage] = useState(null);
   const [selectedReportId, setSelectedReportId] = useState("");
   const [selectedDrawMonth, setSelectedDrawMonth] = useState("");
+  const [drawRunMonth, setDrawRunMonth] = useState(getCurrentDrawMonth());
   const [exportAllReports, setExportAllReports] = useState(false);
   const location = useLocation();
   const listRefs = useRef({});
@@ -752,9 +787,14 @@ function Staff() {
     (resident) => resident.points >= monthlyDrawThreshold
   );
   const currentDrawMonth = getCurrentDrawMonth();
+  const drawableMonths = getDrawableMonths();
   const currentLuckyDraw = monthlyLuckyDraws.find(
     (draw) => draw.id === currentDrawMonth
   );
+  const selectedRunLuckyDraw = monthlyLuckyDraws.find(
+    (draw) => draw.id === drawRunMonth
+  );
+  const selectedRunMonthLabel = getDrawMonthLabel(drawRunMonth);
   const latestLuckyDraw = currentLuckyDraw || monthlyLuckyDraws[0];
   const displayedLuckyDraw = monthlyLuckyDraws.find(
     (draw) => draw.id === selectedDrawMonth
@@ -780,7 +820,12 @@ function Staff() {
 
   const handleExportReports = () => {
     const exportList = exportAllReports ? reports : filteredReports;
-    exportReportsToExcel(exportList, getReportTypeLabel, getDisplayStatus);
+    exportReportsToExcel(
+      exportList,
+      getReportTypeLabel,
+      getDisplayStatus,
+      exportAllReports ? "all-reports" : "filtered-reports"
+    );
   };
 
   const handleExportMonthlyLuckyDraw = () => {
@@ -796,76 +841,96 @@ function Staff() {
     const existingDraw = monthlyLuckyDraws.find((draw) => draw.id === monthValue);
 
     if (existingDraw) {
-      const shouldReplace = window.confirm(
-        `${monthLabel} already has saved winners. Run again and replace them?`
-      );
-
-      if (!shouldReplace) return;
+      alert(`${monthLabel} lucky draw has already been finalized. The saved winners cannot be replaced from the dashboard.`);
+      return;
     }
 
     const winners = pickMonthlyWinners(eligibleResidents);
     const drawRef = doc(db, "monthlyLuckyDraws", monthValue);
     const now = new Date();
+    const totalVoucherUsed = winners.reduce(
+      (total, winner) => total + (Number(winner.voucherValue) || monthlyDrawVoucherValue),
+      0
+    );
+    const unusedBudget = Math.max(0, monthlyDrawBudget - totalVoucherUsed);
 
     setIsRunningDraw(true);
 
     try {
-      const deductionPromises = eligibleResidents.flatMap((resident) => {
-        const pointsToDeduct = getDeductionAmountForResident(resident.points);
+      await runTransaction(db, async (transaction) => {
+        const drawSnap = await transaction.get(drawRef);
 
-        if (pointsToDeduct <= 0) return [];
+        if (drawSnap.exists()) {
+          const error = new Error("Monthly lucky draw already finalized.");
+          error.code = duplicateDrawErrorCode;
+          throw error;
+        }
 
-        let remainingPointsToDeduct = pointsToDeduct;
-        const residentReports = reports
-          .filter(
-            (report) =>
-              report.reporterEmail?.trim().toLowerCase() === resident.reporterEmail
-          )
-          .sort(
-            (firstReport, secondReport) =>
-              getReportCreatedTime(firstReport) - getReportCreatedTime(secondReport)
-          );
+        eligibleResidents.forEach((resident) => {
+          const pointsToDeduct = getDeductionAmountForResident(resident.points);
 
-        return residentReports.flatMap((report) => {
-          if (remainingPointsToDeduct <= 0) return [];
+          if (pointsToDeduct <= 0) return;
 
-          const availablePoints = getReportPointBalance(report);
-          if (availablePoints <= 0) return [];
+          let remainingPointsToDeduct = pointsToDeduct;
+          const residentReports = reports
+            .filter(
+              (report) =>
+                report.reporterEmail?.trim().toLowerCase() === resident.reporterEmail
+            )
+            .sort(
+              (firstReport, secondReport) =>
+                getReportCreatedTime(firstReport) - getReportCreatedTime(secondReport)
+            );
 
-          const deductionForThisReport = Math.min(
-            availablePoints,
-            remainingPointsToDeduct
-          );
+          residentReports.forEach((report) => {
+            if (remainingPointsToDeduct <= 0) return;
 
-          remainingPointsToDeduct -= deductionForThisReport;
+            const availablePoints = getReportPointBalance(report);
+            if (availablePoints <= 0) return;
 
-          return [
-            updateDoc(doc(db, "reports", report.id), {
+            const deductionForThisReport = Math.min(
+              availablePoints,
+              remainingPointsToDeduct
+            );
+
+            remainingPointsToDeduct -= deductionForThisReport;
+
+            transaction.update(doc(db, "reports", report.id), {
               luckyDrawDeductedPoints:
                 (report.luckyDrawDeductedPoints || 0) + deductionForThisReport,
-            }),
-          ];
+            });
+          });
+        });
+
+        transaction.set(drawRef, {
+          month: monthValue,
+          monthLabel,
+          createdAt: now,
+          finalizedAt: now,
+          updatedAt: now,
+          status: "Finalized",
+          locked: true,
+          threshold: monthlyDrawThreshold,
+          eligibleCount: eligibleResidents.length,
+          winnerCount: winners.length,
+          maxWinners: monthlyDrawWinnerCount,
+          voucherValue: monthlyDrawVoucherValue,
+          monthlyBudget: monthlyDrawBudget,
+          totalVoucherUsed,
+          unusedBudget,
+          budgetCarriedForward: false,
+          winners,
         });
       });
 
-      await Promise.all(deductionPromises);
-
-      await setDoc(drawRef, {
-        month: monthValue,
-        monthLabel,
-        createdAt: now,
-        updatedAt: now,
-        threshold: monthlyDrawThreshold,
-        eligibleCount: eligibleResidents.length,
-        winnerCount: winners.length,
-        maxWinners: monthlyDrawWinnerCount,
-        voucherValue: monthlyDrawVoucherValue,
-        monthlyBudget: monthlyDrawBudget,
-        winners,
-      });
-
+      setSelectedDrawMonth(monthValue);
       alert(`${winners.length} winner${winners.length === 1 ? "" : "s"} selected for ${monthLabel}.`);
     } catch (error) {
+      if (error.code === duplicateDrawErrorCode) {
+        alert(`${monthLabel} lucky draw has already been finalized by another staff member. Refreshing saved winners now.`);
+        return;
+      }
+
       console.error("Error running monthly lucky draw:", error);
       alert("Could not save the monthly lucky draw. Please try again.");
     } finally {
@@ -875,8 +940,8 @@ function Staff() {
 
   const runMonthlyLuckyDraw = async () => {
     await runLuckyDrawForMonth(
-      currentDrawMonth,
-      getDrawMonthLabel(currentDrawMonth),
+      drawRunMonth,
+      selectedRunMonthLabel,
       eligibleDrawResidents
     );
   };
@@ -917,6 +982,8 @@ function Staff() {
 
     if (status === "Removed")
       return "bg-danger";
+    if (status === "Pending Owner Claim")
+      return "bg-warning text-dark";
 
     if (status === "Closed")
       return "bg-success";
@@ -971,7 +1038,7 @@ function Staff() {
           </h2>
 
           <p className="text-muted fs-5 mb-0">
-            Residents with {monthlyDrawThreshold} points are eligible for the monthly lucky draw. {monthlyDrawWinnerCount} winners receive a ${monthlyDrawVoucherValue} NTUC voucher each month.
+            Residents with {monthlyDrawThreshold} points are eligible for the monthly lucky draw. Up to {monthlyDrawWinnerCount} winners receive a ${monthlyDrawVoucherValue} NTUC voucher each month.
           </p>
         </div>
 
@@ -1016,22 +1083,47 @@ function Staff() {
               </h3>
 
               <p className="text-muted mb-0">
-                {eligibleDrawResidents.length} resident{eligibleDrawResidents.length === 1 ? "" : "s"} currently eligible for {getDrawMonthLabel(currentDrawMonth)}. The draw selects up to {monthlyDrawWinnerCount} winners.
+                {eligibleDrawResidents.length} resident{eligibleDrawResidents.length === 1 ? "" : "s"} currently eligible. Select the month to finalize before running the draw.
               </p>
             </div>
 
             <div className="text-lg-end">
+              {selectedRunLuckyDraw && (
+                <div className="alert alert-success py-2 px-3 mb-2 text-start">
+                  {selectedRunMonthLabel} draw finalized. Saved winners are locked.
+                </div>
+              )}
+
+              <div className="mb-2 text-start text-lg-end">
+                <label className="form-label small mb-1" htmlFor="drawRunMonth">
+                  Draw month
+                </label>
+                <select
+                  id="drawRunMonth"
+                  className="form-select form-select-sm"
+                  value={drawRunMonth}
+                  onChange={(event) => setDrawRunMonth(event.target.value)}
+                  disabled={isRunningDraw}
+                >
+                  {drawableMonths.map((monthValue) => (
+                    <option key={monthValue} value={monthValue}>
+                      {getDrawMonthLabel(monthValue)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <button
                 className="btn btn-primary"
                 type="button"
                 onClick={runMonthlyLuckyDraw}
-                disabled={isRunningDraw || eligibleDrawResidents.length === 0}
+                disabled={isRunningDraw || eligibleDrawResidents.length === 0 || Boolean(selectedRunLuckyDraw)}
               >
-                {isRunningDraw ? "Running Draw..." : currentLuckyDraw ? "Run Again" : "Run Monthly Draw"}
+                {isRunningDraw ? "Running Draw..." : selectedRunLuckyDraw ? "Draw Already Finalized" : `Run ${selectedRunMonthLabel} Draw`}
               </button>
 
               <p className="text-muted small mt-2 mb-0">
-                Maximum monthly voucher budget: ${monthlyDrawBudget}
+                Monthly budget: ${monthlyDrawBudget}. Unused budget is not carried forward.
               </p>
             </div>
           </div>
@@ -1100,6 +1192,12 @@ function Staff() {
                     <div className="text-md-end">
                       <p className="text-muted small mb-0">
                         {displayedLuckyDraw.eligibleCount || 0} eligible resident{(displayedLuckyDraw.eligibleCount || 0) === 1 ? "" : "s"} at draw time
+                      </p>
+                      <p className="text-muted small mb-0">
+                        Budget used: ${displayedLuckyDraw.totalVoucherUsed ?? ((displayedLuckyDraw.winnerCount || displayedLuckyDraw.winners?.length || 0) * (displayedLuckyDraw.voucherValue || monthlyDrawVoucherValue))} / ${displayedLuckyDraw.monthlyBudget || monthlyDrawBudget}
+                      </p>
+                      <p className="text-muted small mb-0">
+                        Unused budget: ${displayedLuckyDraw.unusedBudget ?? Math.max(0, (displayedLuckyDraw.monthlyBudget || monthlyDrawBudget) - ((displayedLuckyDraw.winnerCount || displayedLuckyDraw.winners?.length || 0) * (displayedLuckyDraw.voucherValue || monthlyDrawVoucherValue)))}. Not carried forward.
                       </p>
                     </div>
                   </div>
@@ -1267,9 +1365,9 @@ function Staff() {
       <div className="portal-card mb-5" style={{ minHeight: "auto" }}>
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 mb-3">
           <div>
-            <h3 className="h5 fw-bold mb-2">Filter Reports</h3>
+            <h3 className="h5 fw-bold mb-2">Find Reports</h3>
             <p className="text-muted mb-0">
-              Use the search box and status dropdown below to narrow the report list before exporting.
+              Search or filter the report list. The export section below will use this filtered view unless you choose all reports.
             </p>
           </div>
         </div>
@@ -1321,15 +1419,15 @@ function Staff() {
         </div>
 
         <p className="text-muted small mt-3 mb-2">
-          Search and filter the view above to choose which reports should be exported.
+          Current view: {filteredReports.length} filtered report{filteredReports.length === 1 ? "" : "s"} out of {reports.length}.
         </p>
 
         <div className="border-top mt-4 pt-4">
           <div className="d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
             <div>
-              <h3 className="h5 fw-bold mb-2">Export Reports</h3>
+              <h3 className="h5 fw-bold mb-2">Export Excel Sheet</h3>
               <p className="text-muted mb-0">
-                Choose whether to export only the visible report results or every report in the system.
+                Download a clearer report spreadsheet with report links, resident response type, claim details, and point balances.
               </p>
             </div>
 
@@ -1343,7 +1441,7 @@ function Staff() {
                   onChange={(event) => setExportAllReports(event.target.checked)}
                 />
                 <label className="form-check-label" htmlFor="exportAllReports">
-                  Export all reports
+                  Ignore filters and export all reports
                 </label>
               </div>
 
@@ -1353,15 +1451,15 @@ function Staff() {
                 onClick={handleExportReports}
                 disabled={exportAllReports ? reports.length === 0 : filteredReports.length === 0}
               >
-                {exportAllReports ? "Export all reports to Excel" : "Export visible reports to Excel"}
+                {exportAllReports ? "Download All Reports Excel" : "Download Filtered Reports Excel"}
               </button>
 
               <p className="text-muted small mt-2 mb-0">
                 {exportAllReports
-                  ? "All reports will be exported regardless of current filters."
+                  ? "Filename: bicycle-all-reports-[date].xlsx"
                   : hasActiveFilters
-                  ? "Only the currently filtered reports are exported."
-                  : "No filters are active, so all visible reports will be exported."}
+                  ? "Filename: bicycle-filtered-reports-[date].xlsx. Only the current results are included."
+                  : "No filters are active, so the filtered export currently includes every report."}
               </p>
             </div>
           </div>
@@ -1812,8 +1910,8 @@ function Staff() {
                                   Bicycle Claim
                                 </h4>
 
-                                <span className="badge bg-success">
-                                  Claimed
+                                <span className={`badge ${selectedReport.status === "Pending Owner Claim" ? "bg-warning text-dark" : "bg-success"}`}>
+                                  {selectedReport.status === "Pending Owner Claim" ? "Claim Submitted" : "Claimed"}
                                 </span>
                               </div>
 

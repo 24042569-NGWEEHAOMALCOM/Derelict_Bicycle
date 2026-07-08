@@ -14,6 +14,7 @@ import ReportNotAbandoned from "./pages/ReportNotAbandoned";
 import PrintNotice from "./pages/PrintNotice";
 import Login from "./pages/Login";
 import AcknowledgeParking from "./pages/AcknowledgeParking";
+import ReportDetails from "./pages/ReportDetails";
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           }
         />
         <Route path="/report" element={<ReportBike />} />
+        <Route path="/report-details/:id" element={<ReportDetails />} />
         <Route
           path="/report/improper-parking"
           element={<ReportBike reportType="improperParking" />}
