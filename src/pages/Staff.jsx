@@ -780,9 +780,6 @@ function Staff() {
   ];
   const topBlocks = getTopCounts(reports, "blockNumber");
   const residentPointSummary = getResidentPoints(reports);
-  const eligibleResidentContributors = residentPointSummary.filter(
-    (resident) => resident.points >= monthlyDrawThreshold
-  );
   const eligibleDrawResidents = residentPointSummary.filter(
     (resident) => resident.points >= monthlyDrawThreshold
   );
@@ -1040,11 +1037,15 @@ function Staff() {
           <p className="text-muted fs-5 mb-0">
             Residents with {monthlyDrawThreshold} points are eligible for the monthly lucky draw. Up to {monthlyDrawWinnerCount} winners receive a ${monthlyDrawVoucherValue} NTUC voucher each month.
           </p>
+
+          <p className="fw-semibold mt-2 mb-0">
+            Total resident contributors: {residentPointSummary.length}
+          </p>
         </div>
 
-        {eligibleResidentContributors.length === 0 ? (
+        {residentPointSummary.length === 0 ? (
           <p className="text-muted mb-0">
-            No residents have reached {monthlyDrawThreshold} points yet.
+            No resident contributors yet.
           </p>
         ) : (
           <div className="table-responsive contributor-table-scroll">
@@ -1059,7 +1060,7 @@ function Staff() {
                 </tr>
               </thead>
               <tbody>
-                {eligibleResidentContributors.map((resident) => (
+                {residentPointSummary.map((resident) => (
                   <tr key={resident.reporterEmail}>
                     <td>{resident.reporterName || resident.reporterEmail}</td>
                     <td>{resident.reporterEmail}</td>
