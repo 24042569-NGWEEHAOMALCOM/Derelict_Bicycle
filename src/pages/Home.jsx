@@ -29,11 +29,12 @@ function Home() {
                 <ul className="fs-5 text-muted">
                   <li>Report suspected abandoned bicycles</li>
                   <li>Report improperly parked bicycles</li>
+                  <li>Check points and Lucky draw eligibility</li>
                   <li>Scan QR codes for bicycle notice information</li>
                   <li>Submit ownership claims or parking warning acknowledgements</li>
                 </ul>
               </div>
-            </Link>
+            </Link>   
           </div>
 
           <div className="col-md-6">
@@ -52,9 +53,9 @@ function Home() {
                   <li>Dashboard with real-time statistics</li>
                   <li>Tag bicycles and generate QR codes</li>
                   <li>Record improper parking warnings</li>
-                  <li>Manage removals and storage</li>
-                  <li>Analytics and hotspot mapping</li>
+                  <li>Manage bicycle removal status</li>
                   <li>Review AI-assisted duplicate reports</li>
+                  <li>Analytics and hotspot mapping</li>
                 </ul>
               </div>
             </Link>
