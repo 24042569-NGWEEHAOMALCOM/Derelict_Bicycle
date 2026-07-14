@@ -54,6 +54,7 @@ function Home() {
                   <li>Record improper parking warnings</li>
                   <li>Manage removals and storage</li>
                   <li>Analytics and hotspot mapping</li>
+                  <li>Review AI-assisted duplicate reports</li>
                 </ul>
               </div>
             </Link>
