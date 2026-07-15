@@ -145,6 +145,11 @@ const getStatusActions = (report) => {
   if (!report) return [];
 
   const normalizedStatus = getDisplayStatus(report.status);
+  const removeAction = {
+    label: "Mark Removed",
+    status: "Removed",
+    className: "btn btn-danger btn-sm",
+  };
 
   if (report.status === "Reported") {
     return [
@@ -172,6 +177,23 @@ const getStatusActions = (report) => {
 
   if (report.status === "Tagged" && isImproperParkingReport(report)) {
     return [
+      removeAction,
+      {
+        label: "Close Case",
+        status: "Closed",
+        className: "btn btn-success btn-sm",
+      },
+    ];
+  }
+
+  if (report.status === "Verified" || report.status === verifiedImproperParkingStatus) {
+    return [
+      removeAction,
+      {
+        label: "Mark Tagged",
+        status: "Tagged",
+        className: "btn btn-warning btn-sm",
+      },
       {
         label: "Close Case",
         status: "Closed",
@@ -181,11 +203,26 @@ const getStatusActions = (report) => {
   }
 
   if (normalizedStatus === firstWarningStatus) {
-    return statusActions[firstWarningStatus] || [];
+    return [removeAction, ...(statusActions[firstWarningStatus] || [])];
   }
 
   if (normalizedStatus === secondWarningStatus || report.status === lockedSecondWarningStatus) {
-    return statusActions[secondWarningStatus] || statusActions[lockedSecondWarningStatus] || [];
+    return [
+      removeAction,
+      ...(statusActions[secondWarningStatus] || statusActions[lockedSecondWarningStatus] || []),
+    ];
+  }
+
+  if (
+    report.status === "Pending Owner Claim" ||
+    report.status === "Closed" ||
+    report.status === "Closed - Claimed" ||
+    report.status === "Closed - Not Abandoned"
+  ) {
+    return [
+      removeAction,
+      ...(statusActions[report.status] || []),
+    ];
   }
 
   return statusActions[report.status] || statusActions[normalizedStatus] || [];
