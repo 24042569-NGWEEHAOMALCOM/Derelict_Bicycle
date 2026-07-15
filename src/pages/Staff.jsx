@@ -13,7 +13,6 @@ import {
   exportMonthlyLuckyDrawToExcel,
   exportReportsToExcel,
 } from "../utils/exportReportsToExcel";
-import { sendClaimNotificationEmail } from "../services/emailService";
 
 const statusOptions = [
   "All",
