@@ -86,6 +86,11 @@ const statusActions = {
   ],
   Removed: [
     {
+      label: "Pending Owner Claim",
+      status: "Pending Owner Claim",
+      className: "btn btn-warning btn-sm",
+    },
+    {
       label: "Close as Claimed",
       status: "Closed - Claimed",
       className: "btn btn-success btn-sm",
