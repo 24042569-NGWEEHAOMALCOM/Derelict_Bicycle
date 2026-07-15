@@ -13,6 +13,7 @@ import {
   exportMonthlyLuckyDrawToExcel,
   exportReportsToExcel,
 } from "../utils/exportReportsToExcel";
+import { sendClaimNotificationEmail } from "../services/emailService";
 
 const statusOptions = [
   "All",
@@ -527,6 +528,12 @@ function Staff() {
 
     await updateDoc(reportRef, updateData);
 
+    // Send claim notification email if status changed to "Removed"
+    if (newStatus === "Removed" && currentReport.reporterEmail) {
+      const updatedReport = { ...currentReport, status: newStatus, ...updateData };
+      await sendClaimNotificationEmail(updatedReport);
+    }
+
     alert(`Status updated to ${newStatus}`);
 
     fetchReports();
@@ -817,6 +824,14 @@ function Staff() {
     {
       label: "Active Cases",
       count: reports.filter((report) => !isClosedStatus(report.status)).length,
+    },
+    {
+      label: "Pending Claims",
+      count: reports.filter((report) => report.status === "Removed" && !report.claimName).length,
+    },
+    {
+      label: "Submitted Claims",
+      count: reports.filter((report) => report.status === "Pending Owner Claim").length,
     },
     {
       label: "Resident Responses",

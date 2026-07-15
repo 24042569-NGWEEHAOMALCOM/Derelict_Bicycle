@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
@@ -13,6 +13,8 @@ const finalStatuses = [
 function ClaimBike() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const prefilledEmail = searchParams.get("email");
 
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +23,7 @@ function ClaimBike() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [proof, setProof] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -28,10 +31,21 @@ function ClaimBike() {
         const reportSnap = await getDoc(doc(db, "reports", id));
 
         if (reportSnap.exists()) {
-          setReport({
+          const reportData = {
             id: reportSnap.id,
             ...reportSnap.data(),
-          });
+          };
+          setReport(reportData);
+
+          // If email is provided in URL and matches reporter email, verify automatically
+          if (prefilledEmail) {
+            const reporterEmail = reportData.reporterEmail?.trim().toLowerCase();
+            const paramEmail = prefilledEmail.trim().toLowerCase();
+
+            if (reporterEmail && reporterEmail === paramEmail) {
+              setEmailVerified(true);
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching report:", error);
@@ -45,7 +59,7 @@ function ClaimBike() {
     };
 
     fetchReport();
-  }, [id]);
+  }, [id, prefilledEmail]);
 
   const isFinalStatus = finalStatuses.includes(report?.status);
   const canSubmitRemovedClaim = report?.status === "Removed";
@@ -118,6 +132,12 @@ function ClaimBike() {
           </div>
         ) : (
           <>
+            {emailVerified && (
+              <div className="alert alert-success mb-4">
+                <strong>Email verified!</strong> You're claiming this bicycle from the direct link sent to your registered email address.
+              </div>
+            )}
+
             {message && (
               <div className={`alert alert-${message.type}`} role="alert">
                 {message.text}
