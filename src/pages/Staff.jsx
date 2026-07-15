@@ -1070,7 +1070,7 @@ function Staff() {
       return "bg-success";
 
     if (status === "Closed - Not Abandoned")
-      return "bg-primary";
+      return "bg-success";
 
     return "bg-secondary";
   };
