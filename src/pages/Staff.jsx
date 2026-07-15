@@ -1013,6 +1013,54 @@ function Staff() {
     return "bg-secondary";
   };
 
+  const getBreakdownStatusLabel = (status) => {
+    const labelMap = {
+      Reported: "New Report",
+      Verified: "Verified",
+      [verifiedImproperParkingStatus]: "Verified (Improper Parking)",
+      Tagged: "Tagged for Removal",
+      [firstWarningStatus]: "1st Warning Sent",
+      [secondWarningStatus]: "2nd Warning Sent",
+      Removed: "Removed",
+      "Pending Owner Claim": "Waiting for Owner",
+      Closed: "Closed",
+      "Closed - Claimed": "Closed (Claimed)",
+      "Closed - Not Abandoned": "Closed (Not Abandoned)",
+    };
+
+    return labelMap[status] || status;
+  };
+
+  const getBreakdownBadgeClass = (status) => {
+    if (status === "Reported") return "bg-secondary";
+
+    if (status === "Verified" || status === verifiedImproperParkingStatus) {
+      return "bg-info text-white";
+    }
+
+    if (
+      status === "Tagged" ||
+      status === firstWarningStatus ||
+      getDisplayStatus(status) === secondWarningStatus
+    ) {
+      return "bg-warning text-dark";
+    }
+
+    if (status === "Removed" || status === "Pending Owner Claim") {
+      return "bg-danger text-white";
+    }
+
+    if (
+      status === "Closed" ||
+      status === "Closed - Claimed" ||
+      status === "Closed - Not Abandoned"
+    ) {
+      return "bg-success text-white";
+    }
+
+    return "bg-secondary";
+  };
+
   return (
     <div className="container py-5">
       <div className="d-flex justify-content-between align-items-center mb-5">
@@ -1282,11 +1330,11 @@ function Staff() {
                     key={item.status}
                   >
                     <button
-                      className={`badge border-0 ${getBadgeClass(item.status)}`}
+                      className={`badge border-0 ${getBreakdownBadgeClass(item.status)}`}
                       onClick={() => filterByStatus(item.status)}
                       type="button"
                     >
-                      {item.status}
+                      {getBreakdownStatusLabel(item.status)}
                     </button>
 
                     <span className="fw-bold">
@@ -1294,6 +1342,28 @@ function Staff() {
                     </span>
                   </div>
                 ))}
+              </div>
+
+              <div className="border-top mt-3 pt-3">
+                <p className="small text-muted mb-2">Legend</p>
+                <div className="d-flex flex-column gap-2 small">
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="rounded-circle bg-info" style={{ width: "10px", height: "10px", display: "inline-block" }} />
+                    <span>New / verified cases</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="rounded-circle bg-warning" style={{ width: "10px", height: "10px", display: "inline-block" }} />
+                    <span>Action needed / warnings</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="rounded-circle bg-danger" style={{ width: "10px", height: "10px", display: "inline-block" }} />
+                    <span>Removed / waiting for owner</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="rounded-circle bg-success" style={{ width: "10px", height: "10px", display: "inline-block" }} />
+                    <span>Resolved cases</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
