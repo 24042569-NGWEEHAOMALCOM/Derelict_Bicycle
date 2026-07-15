@@ -441,6 +441,7 @@ function Staff() {
   const location = useLocation();
   const listRefs = useRef({});
   const detailsRef = useRef(null);
+  const reportListRef = useRef(null);
   const readUpdateAttemptsRef = useRef(new Set());
 
   const getReportList = async () => {
@@ -870,6 +871,10 @@ function Staff() {
     setSearchTerm("");
     setStatusFilter(status);
     setSelectedReportId("");
+
+    setTimeout(() => {
+      reportListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
   };
 
   const getExportButtonLabel = () => {
@@ -1643,7 +1648,7 @@ function Staff() {
 
       ) : (
 
-        <div className="row g-4">
+        <div className="row g-4" ref={reportListRef}>
           <div className="col-lg-5">
             <div className="portal-card h-100" style={{ minHeight: "auto" }}>
               <div className="d-flex justify-content-between align-items-center mb-3">
