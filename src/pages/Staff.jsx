@@ -815,13 +815,32 @@ function Staff() {
     setSelectedReportId("");
   };
 
+  const getExportButtonLabel = () => {
+    if (exportAllReports) return "Export All Reports";
+    if (statusFilter !== "All") return `Export ${statusFilter} Reports`;
+    if (searchTerm.trim()) return "Export Search Results";
+    return "Export Current View";
+  };
+
+  const getExportFilePrefix = () => {
+    if (exportAllReports) return "all-reports";
+    if (statusFilter !== "All") {
+      return statusFilter
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    }
+    if (searchTerm.trim()) return "search-results";
+    return "current-view";
+  };
+
   const handleExportReports = () => {
     const exportList = exportAllReports ? reports : filteredReports;
     exportReportsToExcel(
       exportList,
       getReportTypeLabel,
       getDisplayStatus,
-      exportAllReports ? "all-reports" : "filtered-reports"
+      exportAllReports ? "all-reports" : getExportFilePrefix()
     );
   };
 
@@ -1452,15 +1471,15 @@ function Staff() {
                 onClick={handleExportReports}
                 disabled={exportAllReports ? reports.length === 0 : filteredReports.length === 0}
               >
-                {exportAllReports ? "Download All Reports Excel" : "Download Filtered Reports Excel"}
+                {getExportButtonLabel()}
               </button>
 
               <p className="text-muted small mt-2 mb-0">
                 {exportAllReports
                   ? "Filename: bicycle-all-reports-[date].xlsx. Reports are separated into status tabs."
                   : hasActiveFilters
-                  ? "Filename: bicycle-filtered-reports-[date].xlsx. Only the current results are included."
-                  : "No filters are active, so the filtered export currently includes every report."}
+                  ? `Filename: bicycle-${getExportFilePrefix()}-[date].xlsx. This export matches your current selection.`
+                  : "No filters are active, so the current view export includes every report."}
               </p>
             </div>
           </div>
