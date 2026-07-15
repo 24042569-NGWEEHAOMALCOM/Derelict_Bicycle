@@ -144,8 +144,15 @@ const getReportTypeLabel = (report) =>
 const getStatusActions = (report) => {
   if (!report) return [];
 
+  const normalizedStatus = getDisplayStatus(report.status);
+
   if (report.status === "Reported") {
     return [
+      {
+        label: "Mark Tagged",
+        status: "Tagged",
+        className: "btn btn-warning btn-sm",
+      },
       {
         label: isImproperParkingReport(report)
           ? "Mark Verified: Improperly Parked"
@@ -173,7 +180,15 @@ const getStatusActions = (report) => {
     ];
   }
 
-  return statusActions[report.status] || [];
+  if (normalizedStatus === firstWarningStatus) {
+    return statusActions[firstWarningStatus] || [];
+  }
+
+  if (normalizedStatus === secondWarningStatus || report.status === lockedSecondWarningStatus) {
+    return statusActions[secondWarningStatus] || statusActions[lockedSecondWarningStatus] || [];
+  }
+
+  return statusActions[report.status] || statusActions[normalizedStatus] || [];
 };
 
 const isClosedStatus = (status) =>
