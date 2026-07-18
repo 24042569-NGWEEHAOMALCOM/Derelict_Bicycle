@@ -9,6 +9,7 @@ import {
   BICYCLE_VISION_MODEL,
   compareBicycleImages,
 } from "../services/bicycleVisionService";
+import { sendClaimNotificationEmail } from "../services/emailService";
 import {
   exportMonthlyLuckyDrawToExcel,
   exportReportsToExcel,
@@ -140,6 +141,8 @@ const statusActions = {
 };
 
 const isImproperParkingReport = (report) => report?.caseType === "improperParking";
+const isVerifiedReportStatus = (status) =>
+  status === "Verified" || status === verifiedImproperParkingStatus;
 
 const getReportTypeLabel = (report) =>
   isImproperParkingReport(report)
@@ -158,11 +161,6 @@ const getStatusActions = (report) => {
 
   if (report.status === "Reported") {
     return [
-      {
-        label: "Mark Tagged",
-        status: "Tagged",
-        className: "btn btn-warning btn-sm",
-      },
       {
         label: isImproperParkingReport(report)
           ? "Mark Verified: Improperly Parked"
@@ -191,7 +189,7 @@ const getStatusActions = (report) => {
     ];
   }
 
-  if (report.status === "Verified" || report.status === verifiedImproperParkingStatus) {
+  if (isVerifiedReportStatus(report.status)) {
     return [
       removeAction,
       {
@@ -219,15 +217,11 @@ const getStatusActions = (report) => {
   }
 
   if (
-    report.status === "Pending Owner Claim" ||
     report.status === "Closed" ||
     report.status === "Closed - Claimed" ||
     report.status === "Closed - Not Abandoned"
   ) {
-    return [
-      removeAction,
-      ...(statusActions[report.status] || []),
-    ];
+    return statusActions[report.status] || [];
   }
 
   return statusActions[report.status] || statusActions[normalizedStatus] || [];
@@ -468,6 +462,11 @@ function Staff() {
 
     if (!isAllowedStatus) {
       alert("This status update is not allowed for the current case stage.");
+      return;
+    }
+
+    if (newStatus === "Tagged" && !isVerifiedReportStatus(currentReport?.status)) {
+      alert("New reports must be verified before they can be tagged.");
       return;
     }
 
