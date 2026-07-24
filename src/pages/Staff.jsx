@@ -1898,7 +1898,7 @@ function Staff() {
                             </h3>
 
                             <p className="text-muted mb-0">
-                              Gemini compares the bicycle image with up to {duplicateComparisonLimit}{" "}
+                              Gemini compares the bicycle image with
                               recent open reports of the same case type. Staff
                               must confirm every result.
                             </p>
