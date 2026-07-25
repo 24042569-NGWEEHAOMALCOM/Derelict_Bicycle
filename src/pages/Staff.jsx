@@ -9,11 +9,11 @@ import {
   BICYCLE_VISION_MODEL,
   compareBicycleImages,
 } from "../services/bicycleVisionService";
-import { sendClaimNotificationEmail } from "../services/emailService";
 import {
   exportMonthlyLuckyDrawToExcel,
   exportReportsToExcel,
 } from "../utils/exportReportsToExcel";
+import { sendClaimNotificationEmail } from "../services/emailService";
 
 const statusOptions = [
   "All",
@@ -141,8 +141,6 @@ const statusActions = {
 };
 
 const isImproperParkingReport = (report) => report?.caseType === "improperParking";
-const isVerifiedReportStatus = (status) =>
-  status === "Verified" || status === verifiedImproperParkingStatus;
 
 const getReportTypeLabel = (report) =>
   isImproperParkingReport(report)
@@ -161,6 +159,11 @@ const getStatusActions = (report) => {
 
   if (report.status === "Reported") {
     return [
+      {
+        label: "Mark Tagged",
+        status: "Tagged",
+        className: "btn btn-warning btn-sm",
+      },
       {
         label: isImproperParkingReport(report)
           ? "Mark Verified: Improperly Parked"
@@ -189,7 +192,7 @@ const getStatusActions = (report) => {
     ];
   }
 
-  if (isVerifiedReportStatus(report.status)) {
+  if (report.status === "Verified" || report.status === verifiedImproperParkingStatus) {
     return [
       removeAction,
       {
@@ -217,11 +220,15 @@ const getStatusActions = (report) => {
   }
 
   if (
+    report.status === "Pending Owner Claim" ||
     report.status === "Closed" ||
     report.status === "Closed - Claimed" ||
     report.status === "Closed - Not Abandoned"
   ) {
-    return statusActions[report.status] || [];
+    return [
+      removeAction,
+      ...(statusActions[report.status] || []),
+    ];
   }
 
   return statusActions[report.status] || statusActions[normalizedStatus] || [];
@@ -465,11 +472,6 @@ function Staff() {
       return;
     }
 
-    if (newStatus === "Tagged" && !isVerifiedReportStatus(currentReport?.status)) {
-      alert("New reports must be verified before they can be tagged.");
-      return;
-    }
-
     const reportRef = doc(db, "reports", reportId);
 
     let updateData = {
@@ -588,6 +590,8 @@ function Staff() {
       const params = new URLSearchParams(location.search);
       const reportId = params.get("report");
       if (reportId) {
+        setSearchTerm("");
+        setStatusFilter("All");
         window.setTimeout(() => {
           setSelectedReportId(reportId);
         }, 0);
@@ -1898,7 +1902,7 @@ function Staff() {
                             </h3>
 
                             <p className="text-muted mb-0">
-                              Gemini compares the bicycle image with
+                              Gemini compares the bicycle image with up to {duplicateComparisonLimit}{" "}
                               recent open reports of the same case type. Staff
                               must confirm every result.
                             </p>
