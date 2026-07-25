@@ -63,6 +63,7 @@ function ClaimBike() {
 
   const isFinalStatus = finalStatuses.includes(report?.status);
   const canSubmitRemovedClaim = report?.status === "Removed";
+  const isImproperParking = report?.caseType === "improperParking";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -110,10 +111,14 @@ function ClaimBike() {
   return (
     <div className="container py-5">
       <div className="portal-card">
-        <h1 className="fw-bold mb-4">Claim Bicycle</h1>
+        <h1 className="fw-bold mb-4">
+          {isImproperParking ? "Improperly Parked Bicycle Notice" : "Claim Bicycle"}
+        </h1>
 
         <p className="text-muted fs-5">
-          Submit your details after the bicycle has been removed so staff can verify ownership during collection.
+          {isImproperParking
+            ? "Submit your ownership details for this removed improperly parked bicycle so staff can verify collection."
+            : "Submit your details after the bicycle has been removed so staff can verify ownership during collection."}
         </p>
 
         {loading ? (
@@ -128,6 +133,8 @@ function ClaimBike() {
           <div className="alert alert-warning">
             {isFinalStatus
               ? "This case is already closed or already has an owner claim pending."
+              : isImproperParking
+              ? "This improper parking notice is not ready for an ownership claim yet."
               : "This bicycle has not been removed yet. If it is still in use, submit a not-abandoned response from the QR notice page."}
           </div>
         ) : (

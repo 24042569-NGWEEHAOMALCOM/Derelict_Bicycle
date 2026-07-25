@@ -105,7 +105,7 @@ function QRPage() {
   const isFinalStatus =
     finalStatuses.includes(report.status) ||
     (isImproperParking && isAcknowledgedNotice);
-  const isRemovedAbandonedBicycle = report.status === "Removed" && !isImproperParking;
+  const canSubmitOwnerClaim = report.status === "Removed";
   const hasPendingOwnerClaim = report.status === "Pending Owner Claim";
 
   return (
@@ -161,9 +161,11 @@ function QRPage() {
 
         <div className="mt-4">
 
-          {isRemovedAbandonedBicycle ? (
+          {canSubmitOwnerClaim ? (
             <div className="alert alert-danger">
-              This bicycle has been removed by Town Council. If you are the owner, submit an ownership claim and visit the Town Council office for collection.
+              {isImproperParking
+                ? "This improperly parked bicycle has been removed by Town Council. If you are the owner, submit an ownership claim and visit the Town Council office for collection."
+                : "This bicycle has been removed by Town Council. If you are the owner, submit an ownership claim and visit the Town Council office for collection."}
             </div>
           ) : hasPendingOwnerClaim ? (
             <div className="alert alert-info">
@@ -194,7 +196,7 @@ function QRPage() {
 
         </div>
 
-        {!isFinalStatus && !isImproperParking && !isRemovedAbandonedBicycle && (
+        {!isFinalStatus && !isImproperParking && !canSubmitOwnerClaim && (
           <div className="d-flex flex-wrap gap-3 mt-4">
             <a href={`/not-abandoned/${report.id}`} className="btn btn-primary">
               Report Not Abandoned
@@ -202,10 +204,10 @@ function QRPage() {
           </div>
         )}
 
-        {isRemovedAbandonedBicycle && (
+        {canSubmitOwnerClaim && (
           <div className="d-flex flex-wrap gap-3 mt-4">
             <a href={`/claim/${report.id}`} className="btn btn-success">
-              Claim Removed Bicycle
+              Submit Ownership Claim
             </a>
           </div>
         )}
@@ -216,7 +218,7 @@ function QRPage() {
             </p>
         </div>
 
-        {!isFinalStatus && isImproperParking && (
+        {!isFinalStatus && isImproperParking && !canSubmitOwnerClaim && (
           <div className="d-flex flex-wrap gap-3 mt-4">
             <a href={`/acknowledge/${report.id}`} className="btn btn-warning">
               Next
