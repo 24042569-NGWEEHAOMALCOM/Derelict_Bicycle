@@ -27,7 +27,7 @@ const getBadgeClass = (status) => {
   if (status === "Verified: Improperly Parked") return "bg-info";
   if (status === "Tagged") return "bg-warning text-dark";
   if (getDisplayStatus(status) === firstWarningStatus) return "bg-warning text-dark";
-  if (getDisplayStatus(status) === secondWarningStatus) return "bg-danger";
+  if (getDisplayStatus(status) === secondWarningStatus) return "bg-warning text-dark";
   if (status === "Removed") return "bg-danger";
   if (status === "Pending Owner Claim") return "bg-warning text-dark";
   if (status === "Closed") return "bg-success";

@@ -1073,7 +1073,7 @@ function Staff() {
       return "bg-warning text-dark";
 
     if (getDisplayStatus(status) === secondWarningStatus)
-      return "bg-danger";
+      return "bg-warning text-dark";
 
     if (status === "Removed")
       return "bg-danger";
