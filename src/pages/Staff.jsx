@@ -1902,7 +1902,7 @@ function Staff() {
                             </h3>
 
                             <p className="text-muted mb-0">
-                              Gemini compares the bicycle image with up to {duplicateComparisonLimit}{" "}
+                              Check this bicycle image against
                               recent open reports of the same case type. Staff
                               must confirm every result.
                             </p>
@@ -1951,7 +1951,7 @@ function Staff() {
                         ) : selectedReport.duplicateDetection?.status !== "checked" &&
                           aiDuplicateReports.length === 0 ? (
                           <div className="alert alert-secondary mb-0">
-                            This report has not been checked by Gemini yet.
+                            This report has not been checked for visual duplicates yet.
                           </div>
                         ) : aiDuplicateReports.length === 0 ? (
                           <div className="alert alert-success mb-0">
