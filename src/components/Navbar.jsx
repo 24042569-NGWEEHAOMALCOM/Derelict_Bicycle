@@ -34,7 +34,6 @@ function Navbar() {
       <div className="d-flex gap-3 align-items-center">
         <NavLink className="nav-pill" to="/">Home</NavLink>
         <NavLink className="nav-pill" to="/resident">Resident</NavLink>
-        <NavLink className="nav-pill" to="/staff">Staff</NavLink>
 
         {user ? (
           <button
@@ -45,7 +44,7 @@ function Navbar() {
             Logout
           </button>
         ) : (
-          <NavLink className="nav-pill" to="/login">Login</NavLink>
+          <NavLink className="nav-pill" to="/login">Staff Login</NavLink>
         )}
       </div>
     </nav>

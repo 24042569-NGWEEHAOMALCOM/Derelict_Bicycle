@@ -113,7 +113,7 @@ function Login() {
             type="submit"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Signing in..." : "Sign In"}
+            {isSubmitting ? "Logging in..." : "Staff Login"}
           </button>
         </form>
       </div>
