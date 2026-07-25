@@ -61,10 +61,12 @@ body {
 }
 
 .report-image {
+  background: #f8fafc;
   border-radius: 8px;
   display: block;
+  height: auto;
   max-height: 420px;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
