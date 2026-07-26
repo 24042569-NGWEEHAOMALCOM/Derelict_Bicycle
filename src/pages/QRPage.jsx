@@ -172,7 +172,7 @@ function QRPage() {
           ) : isFinalStatus ? (
             <div className="alert alert-success">
               {isSecondWarningNotice
-                ? "This 2nd warning has been recorded. Please scan the QR code to submit a claim. Staff will contact you after verifying your ownership for collection."
+                ? "This 2nd warning has been recorded. Scan the QR code tag to submit an ownership claim and visit the Town Council office for collection."
                 : isImproperParking && report.status?.startsWith("Acknowledged")
                 ? "Your acknowledgement has been recorded. No further action is required for this notice."
                 : "This case is already closed. No further resident action is required."}
