@@ -142,6 +142,21 @@ const statusActions = {
 
 const isImproperParkingReport = (report) => report?.caseType === "improperParking";
 
+const toDateValue = (value) => {
+  if (!value) return null;
+  return value.toDate ? value.toDate() : new Date(value);
+};
+
+const getNoticeExpiryDate = (report, fallbackDate = new Date()) => {
+  const isImproperParking = isImproperParkingReport(report);
+  const baseDate = isImproperParking
+    ? toDateValue(report.createdAt) || fallbackDate
+    : fallbackDate;
+  const expiryDate = new Date(baseDate);
+  expiryDate.setDate(expiryDate.getDate() + (isImproperParking ? 7 : 30));
+  return expiryDate;
+};
+
 const getReportTypeLabel = (report) =>
   isImproperParkingReport(report)
     ? "Improperly Parked Bicycle"
@@ -500,8 +515,7 @@ function Staff() {
 
         const tagDate = new Date();
 
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 30);
+        const expiryDate = getNoticeExpiryDate(currentReport, tagDate);
 
         const qrUrl = `${window.location.origin}/qr/${reportId}`;
 

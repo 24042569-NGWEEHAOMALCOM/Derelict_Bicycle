@@ -123,9 +123,7 @@ function QRPage() {
           <div className="alert alert-warning">
           
             <p className="mb-0">
-              {isSecondWarningNotice
-                ? "2nd warning for improper parking. It has been locked by Town Council. Please head down to the Town Council office for assistance."
-                : "This bicycle has been reported for improper parking by Nee Soon Town Council."}
+              This bicycle has been reported for improper parking by Nee Soon Town Council.
             </p>
           </div>
         )}
@@ -174,7 +172,7 @@ function QRPage() {
           ) : isFinalStatus ? (
             <div className="alert alert-success">
               {isSecondWarningNotice
-                ? "This 2nd warning has been recorded. Please visit the Town Council office for assistance."
+                ? "This 2nd warning has been recorded. Please scan the QR code to submit a claim. Staff will contact you after verifying your ownership for collection."
                 : isImproperParking && report.status?.startsWith("Acknowledged")
                 ? "Your acknowledgement has been recorded. No further action is required for this notice."
                 : "This case is already closed. No further resident action is required."}

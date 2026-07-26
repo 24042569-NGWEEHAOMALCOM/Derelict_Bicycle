@@ -41,9 +41,7 @@ const getWarningNoticeCopy = (warningNumber, hasPhoneNumber) => {
     return {
       title: "2nd Warning for Improper Parking",
       body:
-        "This bicycle has been locked by the Town Council due to repeated improper parking offences.",
-      instruction:
-        "Please proceed to the Town Council office for verification and assistance.",
+        "This bicycle will be removed by the Town Council due to repeated improper parking offences.",
     };
   }
 
@@ -53,7 +51,7 @@ const getWarningNoticeCopy = (warningNumber, hasPhoneNumber) => {
       body:
         "Enter your phone number below to verify whether this notice is a 1st or 2nd warning." ,
       instruction:
-        "If this is a 2nd warning, the bicycle has been locked by Town Council."
+        "If this is a 2nd warning, the bicycle will be removed by Town Council."
     };
   }
 
@@ -62,8 +60,7 @@ const getWarningNoticeCopy = (warningNumber, hasPhoneNumber) => {
     body:
       "Please move your bicycle away from this location and park it properly.",
     instruction:
-      "If this bicycle commits a 2nd improper parking offence, it will be locked by Town Council." +
-      "You will be required to head down to the Town Council office for assistance.",
+      "If this bicycle commits a 2nd improper parking offence, it will be removed by Town Council." 
   };
 };
 
