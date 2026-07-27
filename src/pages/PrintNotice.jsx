@@ -190,7 +190,7 @@ function PrintNotice() {
 
         <div className="notice-footer">
           {isImproperParking
-            ? "This notice is a 1st warning for improper parking. If the bicycle commits a 2nd improper parking offence, it will be locked by Town Council and the resident must visit the Town Council office for assistance."
+            ? "This notice is a 1st warning for improper parking. If committed for a 2nd improper parking offence, the bicycle will be removed by the Town Council."
             : "Bicycle may be removed by Town Council after the notice period if no valid response is received."}
         </div>
       </div>
