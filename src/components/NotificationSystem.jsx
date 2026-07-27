@@ -52,9 +52,7 @@ function NotificationSystem() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleNotificationClick = (notification) => {
-    // Add a timestamp so clicking the same report again still triggers route updates.
-    const openAt = Date.now();
-    navigate(`/staff?report=${notification.caseId}&openAt=${openAt}`);
+    navigate(`/staff?report=${notification.caseId}`);
     setShowNotifications(false);
   };
 

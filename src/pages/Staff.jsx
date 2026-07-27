@@ -586,9 +586,9 @@ function Staff() {
           .sort((first, second) => second.id.localeCompare(first.id));
 
         setMonthlyLuckyDraws(drawList);
-        if (!selectedDrawMonth) {
-          setSelectedDrawMonth(drawList[0]?.id || "");
-        }
+        setSelectedDrawMonth((currentMonth) => (
+          currentMonth || drawList[0]?.id || ""
+        ));
       },
       (error) => {
         console.error("Error fetching monthly lucky draws:", error);
@@ -596,7 +596,7 @@ function Staff() {
     );
 
     return unsubscribe;
-  }, [selectedDrawMonth]);
+  }, []);
 
   // If a `report` query parameter is present, auto-select that report
   useEffect(() => {
@@ -604,16 +604,19 @@ function Staff() {
       const params = new URLSearchParams(location.search);
       const reportId = params.get("report");
       if (reportId) {
-        setSearchTerm("");
-        setStatusFilter("All");
-        window.setTimeout(() => {
+        const selectReportTimeout = window.setTimeout(() => {
+          setSearchTerm("");
+          setStatusFilter("All");
           setSelectedReportId(reportId);
         }, 0);
+
+        return () => window.clearTimeout(selectReportTimeout);
       }
     } catch {
       // ignore
     }
-  }, [location.search]);
+    return undefined;
+  }, [location.key, location.search]);
 
   useEffect(() => {
     if (!selectedReportId) return;

@@ -1,20 +1,11 @@
-import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "../firebase/firebase";
+import useAuth from "../hooks/useAuth";
 
 function Navbar() {
   const navigate = useNavigate();
-
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-
-    return unsubscribe;
-  }, []);
+  const { user, checkingAuth } = useAuth();
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -36,15 +27,24 @@ function Navbar() {
         <NavLink className="nav-pill" to="/resident">Resident</NavLink>
 
         {user ? (
-          <button
-            className="btn btn-outline-secondary"
-            type="button"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
-        ) : (
+          <>
+            <NavLink className="nav-pill" to="/staff">
+              Staff Dashboard
+            </NavLink>
+            <button
+              className="btn btn-outline-secondary"
+              type="button"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </>
+        ) : !checkingAuth ? (
           <NavLink className="nav-pill" to="/login">Staff Login</NavLink>
+        ) : (
+          <span className="nav-pill text-muted" aria-label="Checking staff session">
+            Staff
+          </span>
         )}
       </div>
     </nav>

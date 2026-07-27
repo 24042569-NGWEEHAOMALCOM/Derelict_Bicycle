@@ -15,43 +15,46 @@ import PrintNotice from "./pages/PrintNotice";
 import Login from "./pages/Login";
 import AcknowledgeParking from "./pages/AcknowledgeParking";
 import ReportDetails from "./pages/ReportDetails";
+import AuthProvider from "./components/AuthProvider";
 
 function App() {
   return (
     <BrowserRouter>
-    <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/resident" element={<Resident />} />
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/staff"
-          element={
-            <ProtectedRoute>
-              <Staff />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/report" element={<ReportBike />} />
-        <Route path="/report-details/:id" element={<ReportDetails />} />
-        <Route
-          path="/report/improper-parking"
-          element={<ReportBike reportType="improperParking" />}
-        />
-        <Route path="/scan" element={<ScanQRCode />} />
-        <Route path="/qr/:id" element={<QRPage />} />
-        <Route
-          path="/notice/:id"
-          element={
-            <ProtectedRoute>
-              <PrintNotice />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/claim/:id" element={<ClaimBike />} />
-        <Route path="/not-abandoned/:id" element={<ReportNotAbandoned />} />
-        <Route path="/acknowledge/:id" element={<AcknowledgeParking />} />
-      </Routes>
+      <AuthProvider>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/resident" element={<Resident />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute>
+                <Staff />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/report" element={<ReportBike />} />
+          <Route path="/report-details/:id" element={<ReportDetails />} />
+          <Route
+            path="/report/improper-parking"
+            element={<ReportBike reportType="improperParking" />}
+          />
+          <Route path="/scan" element={<ScanQRCode />} />
+          <Route path="/qr/:id" element={<QRPage />} />
+          <Route
+            path="/notice/:id"
+            element={
+              <ProtectedRoute>
+                <PrintNotice />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/claim/:id" element={<ClaimBike />} />
+          <Route path="/not-abandoned/:id" element={<ReportNotAbandoned />} />
+          <Route path="/acknowledge/:id" element={<AcknowledgeParking />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

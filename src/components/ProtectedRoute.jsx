@@ -1,24 +1,12 @@
-import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import { useIdleSessionTimeout } from "../utils/sessionTimeout";
+import useAuth from "../hooks/useAuth";
 
 function ProtectedRoute({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const [user, setUser] = useState(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setCheckingAuth(false);
-    });
-
-    return unsubscribe;
-  }, []);
+  const { user, checkingAuth } = useAuth();
 
   useIdleSessionTimeout(user, auth, navigate);
 
