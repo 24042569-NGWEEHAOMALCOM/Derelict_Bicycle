@@ -2,7 +2,7 @@ import { getGenerativeModel, Schema } from "firebase/ai";
 import { ai } from "../firebase/firebase";
 
 export const BICYCLE_VISION_MODEL =
-  import.meta.env.VITE_FIREBASE_AI_MODEL || "gemini-3.5-flash";
+  import.meta.env.VITE_FIREBASE_AI_MODEL || "gemini-3.6-flash";
 
 const verdicts = ["likely_same", "uncertain", "likely_different"];
 const responseSchema = Schema.object({
